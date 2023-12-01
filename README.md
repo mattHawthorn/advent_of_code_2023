@@ -14,7 +14,7 @@ This _does_ mean that much of the code in this repo is restricted to running in 
 From repo root, run:
 
 ```shell
-poetry install --dev
+poetry install
 ```
 
 ## Run a solution
