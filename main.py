@@ -6,10 +6,11 @@ from importlib import import_module
 from inspect import signature
 from pathlib import Path
 from time import perf_counter_ns
-from typing import IO, Protocol, TypeVar, Union
+from typing import IO, Dict, List, Mapping, Optional, Protocol, TypeVar, Union
 
 from bourbaki.application.cli import CommandLineInterface, cli_spec  # type: ignore
 from bourbaki.application.typed_io.cli_parse import cli_parser  # type: ignore
+from bourbaki.application.typed_io.cli_repr_ import cli_repr  # type: ignore
 
 warnings.filterwarnings("ignore", r".* jump offsets", category=UserWarning, module=r".*\.tailrec")
 
@@ -27,9 +28,16 @@ class Problem(Protocol[Solution]):
         ...
 
 
-@cli_parser.register(Param, as_const=True, derive_nargs=True)
-def parse_param(s: str):
-    return json.loads(s)
+class Options(Dict[str, Param]):
+    pass
+
+
+cli_repr.register(Options, as_const=True)("<name>=<value:json>")
+
+
+@cli_parser.register(Options, as_const=True, derive_nargs=True)
+def parse_param(args: List[str]):
+    return {key: json.loads(val) for key, val in (a.split("=", maxsplit=1) for a in args)}
 
 
 def print_solution(solution):
@@ -66,7 +74,7 @@ class AOC2023:
     """Run and test Matt Hawthorn's solutions to the 2022 Advent of Code problems"""
 
     @cli_spec.output_handler(print_solution)
-    def run(self, day: int, **args: Param):
+    def run(self, day: int, options: Optional[Options] = None):
         """Run the solution to a particular day's problem. The default input is in the inputs/
         folder, but input will be read from stdin if input is piped there.
 
@@ -76,9 +84,10 @@ class AOC2023:
         """
         problem = import_problem(day)
         input_ = get_input(day)
+        kwargs: Mapping[str, Param] = options or {}
         print(f"Running solution to day {day}...", file=sys.stderr)
         tic = perf_counter_ns()
-        solution = problem.run(input_, **args)
+        solution = problem.run(input_, **kwargs)
         toc = perf_counter_ns()
         print(f"Ran in {(toc - tic) / 1000000} ms", file=sys.stderr)
         return solution
