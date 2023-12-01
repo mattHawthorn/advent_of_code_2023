@@ -62,13 +62,13 @@ cli = CommandLineInterface(
 
 
 @cli.definition
-class AOC2022:
+class AOC2023:
     """Run and test Matt Hawthorn's solutions to the 2022 Advent of Code problems"""
 
     @cli_spec.output_handler(print_solution)
     def run(self, day: int, **args: Param):
-        """Run the solution to a particular day's problem. The default input is in the inputs/ folder,
-        but input will be read from stdin if input is piped there.
+        """Run the solution to a particular day's problem. The default input is in the inputs/
+        folder, but input will be read from stdin if input is piped there.
 
         :param day: the day number of the problem to solve (1-25)
         :param args: keyword arguments to pass to the problem solution in case it is parameterized.
@@ -93,7 +93,8 @@ class AOC2022:
         print(f"Tests pass for day {day}!")
 
     def info(self, day: int):
-        """Print the doc string for a particular day's solution, providing some details about methodology
+        """Print the doc string for a particular day's solution, providing some details about
+        methodology.
 
         :param day: the day number of the problem to run tests for (1-25)
         """
