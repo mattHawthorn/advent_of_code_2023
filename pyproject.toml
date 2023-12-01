@@ -1,10 +1,10 @@
 [tool.poetry]
-name = ""
+name = "advent_of_code_2023"
 version = "1.0"
 description = "Advent of Code 2023 Solutions"
 authors = ["Matt Hawthorn"]
 readme = "README.md"
-packages = [{include = "lib", from="src"}, {include = "solutions", from="src"}]
+packages = [{include = "*", from = "src"}]
 include = ["py.typed"]
 
 [tool.poetry.dependencies]

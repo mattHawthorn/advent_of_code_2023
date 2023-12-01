@@ -4,7 +4,7 @@ from itertools import cycle, islice
 from operator import add, attrgetter, mul, sub
 from typing import IO, Callable, Dict, List, NamedTuple
 
-from .util import lcm, parse_blocks, print_, set_verbose
+from util import lcm, parse_blocks, print_, set_verbose
 
 WorryLevel = int
 MonkeyID = int

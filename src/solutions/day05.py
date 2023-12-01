@@ -2,7 +2,7 @@ from functools import reduce
 from itertools import takewhile, zip_longest
 from typing import IO, List, NamedTuple, Optional
 
-from .util import T, compose, nonnull_head
+from util import T, compose, nonnull_head
 
 Stacks = List[List[T]]
 

@@ -3,7 +3,7 @@ from functools import reduce
 from itertools import chain, repeat, takewhile
 from typing import IO, Deque, List, Tuple
 
-from .util import compose, fst
+from util import compose, fst
 
 Cycle = Deque[Tuple[int, int]]
 

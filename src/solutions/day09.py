@@ -2,7 +2,7 @@ from itertools import accumulate
 from operator import itemgetter
 from typing import IO, Dict, Iterable, Iterator, Tuple
 
-from .util import GridCoordinates, Sprite, Vector, print_, set_verbose, sign, translate
+from util import GridCoordinates, Sprite, Vector, print_, set_verbose, sign, translate
 
 Direction = str
 Distance = int

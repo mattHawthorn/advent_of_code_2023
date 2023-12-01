@@ -3,7 +3,7 @@ from itertools import chain, filterfalse, product, repeat
 from operator import itemgetter
 from typing import IO, Iterator, List, Set, Tuple
 
-from .util import (
+from util import (
     Edge,
     GridCoordinates,
     GridCoordinates3D,

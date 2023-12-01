@@ -4,8 +4,8 @@ from itertools import chain, filterfalse
 from operator import add, mul, sub
 from typing import IO, Callable, Dict, Iterable, List, NamedTuple, Optional, Tuple
 
-from .tailrec import tail_recursive
-from .util import INF, branch_and_bound, iterate, set_verbose, take_until
+from tailrec import tail_recursive
+from util import INF, branch_and_bound, iterate, set_verbose, take_until
 
 Material = str
 RobotType = str

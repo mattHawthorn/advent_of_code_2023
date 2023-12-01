@@ -4,7 +4,7 @@ from typing import Tuple
 
 import pytest
 
-from solutions.tailrec import tail_recursive
+from tailrec import tail_recursive
 
 
 @tail_recursive

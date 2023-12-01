@@ -2,7 +2,7 @@ from functools import partial
 from itertools import chain, cycle, filterfalse, islice, repeat, takewhile
 from typing import IO, Dict, Iterable, List, Set, Tuple, cast
 
-from .util import (
+from util import (
     GridCoordinates,
     SparseGrid,
     Sprite,

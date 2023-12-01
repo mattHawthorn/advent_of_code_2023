@@ -4,7 +4,7 @@ from itertools import chain, count, islice, product, repeat, starmap, takewhile
 from operator import mul, sub
 from typing import IO, Callable, Dict, Iterable, Iterator, List, Set, Tuple, Union, cast
 
-from .util import (
+from util import (
     GridCoordinates,
     GridCoordinates3D,
     SparseGrid,

@@ -2,7 +2,7 @@ import operator
 
 import pytest
 
-from solutions import util
+import util
 
 
 def is_inc(a, b):

@@ -3,7 +3,7 @@ from functools import partial, reduce
 from itertools import accumulate, count, islice, repeat, takewhile
 from typing import IO, Dict, Iterator, List, Optional, Tuple
 
-from .util import GridCoordinates, SparseGrid, T, Vector, compose, fst, snd, translate
+from util import GridCoordinates, SparseGrid, T, Vector, compose, fst, snd, translate
 
 ELF, EMPTY = "#", "."
 DIRECTIONS: List[Tuple[Vector, List[Vector]]] = [

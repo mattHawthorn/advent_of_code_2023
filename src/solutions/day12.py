@@ -1,7 +1,7 @@
 from functools import partial
 from typing import IO, Optional, Tuple
 
-from .util import Edge, Grid, GridCoordinates, djikstra_all, grid_to_graph, reverse_graph, snd
+from util import Edge, Grid, GridCoordinates, djikstra_all, grid_to_graph, reverse_graph, snd
 
 START, END, START_CHAR, END_CHAR = "S", "E", "a", "z"
 
@@ -46,7 +46,6 @@ def edge_weight(grid: Grid[int], edge: Edge[GridCoordinates]) -> Optional[int]:
 
 def run(input_: IO[str], part_2: bool = True):
     grid, start, end = parse_terrain(input_)
-    height: int
     if part_2:
         starts = {
             (i, j) for i, row in enumerate(grid) for j, height in enumerate(row) if height == 0

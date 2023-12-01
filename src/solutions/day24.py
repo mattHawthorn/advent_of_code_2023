@@ -4,7 +4,7 @@ from functools import partial
 from itertools import chain, islice, repeat
 from typing import IO, Iterable, List, NamedTuple, Optional, Set, Tuple
 
-from .util import (
+from util import (
     GridCoordinates,
     T,
     compose,
@@ -118,7 +118,7 @@ def with_const_weight(it: Iterable[T]) -> Iterable[Tuple[T, int]]:
 def animate(time_steps: List[Valley], path: List[State], delay: Optional[float]):
     D, U, L, R, EMPTY = "˯", "˰", "˱", "˲", " "
     os.system("clear")
-    for (coords, t) in path:
+    for coords, t in path:
         print(coords, t)
         valley = time_steps[(t - 1) % len(time_steps)]
         print(

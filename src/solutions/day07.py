@@ -3,7 +3,7 @@ from itertools import chain
 from textwrap import indent
 from typing import IO, Callable, NamedTuple, Optional, Tuple, cast
 
-from .util import Tree, dfs, identity, print_, set_verbose, tree_acc
+from util import Tree, dfs, identity, print_, set_verbose, tree_acc
 
 
 class Stat(NamedTuple):
@@ -21,9 +21,7 @@ def dir_to_str(dir_: File):
     else:
         header = f"{dir_.id} {dir_.data.size}"
     contents = sorted(dir_, key=lambda f: (f.data.is_dir, f.id))  # files first
-    return "\n".join(
-        chain([header], map(partial(indent, prefix="  "), map(dir_to_str, contents)))
-    )
+    return "\n".join(chain([header], map(partial(indent, prefix="  "), map(dir_to_str, contents))))
 
 
 # Parsing
@@ -73,9 +71,7 @@ def parse_terminal(f: IO[str]) -> File:
                 assert maybe_name is not None
                 if maybe_name == PARENT:
                     assert current_tree.parent is not None
-                    print_(
-                        f"move up to {current_tree.parent.id}/ from {current_tree.id}/"
-                    )
+                    print_(f"move up to {current_tree.parent.id}/ from {current_tree.id}/")
                     current_tree = current_tree.parent
                 else:
                     print_(f"move down to {maybe_name}/ from {current_tree.id}/")
@@ -104,9 +100,7 @@ def parse_terminal(f: IO[str]) -> File:
     return root
 
 
-def deletion_candidate(
-    filesystem: File, capacity: int, required: int
-) -> Tuple[FilePath, File]:
+def deletion_candidate(filesystem: File, capacity: int, required: int) -> Tuple[FilePath, File]:
     total_size = filesystem.data.size
     max_allowable = capacity - required
     must_delete = total_size - max_allowable
@@ -115,9 +109,7 @@ def deletion_candidate(
         f"must delete {must_delete} to free {required}"
     )
     deletion_candidates = (
-        (p, d)
-        for p, d in dfs(filesystem)
-        if d.data.is_dir and d.data.size >= must_delete
+        (p, d) for p, d in dfs(filesystem) if d.data.is_dir and d.data.size >= must_delete
     )
     return min(deletion_candidates, key=lambda t: t[1].data.size)
 

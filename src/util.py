@@ -28,7 +28,7 @@ from typing import (
     overload,
 )
 
-from .tailrec import tail_recursive
+from tailrec import tail_recursive
 
 VERBOSE = False
 

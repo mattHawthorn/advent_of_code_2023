@@ -2,7 +2,7 @@ from functools import reduce
 from itertools import chain, starmap
 from typing import IO, Iterable, Set, Tuple
 
-from .util import chunked, first
+from util import chunked, first
 
 PRIORITY = dict(
     chain(

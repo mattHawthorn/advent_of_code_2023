@@ -3,7 +3,7 @@ from functools import partial, reduce
 from itertools import filterfalse, product, repeat
 from typing import IO, FrozenSet, List, MutableMapping, NamedTuple, Tuple
 
-from .util import WeightedDiGraph, compose, floyd_warshall, fst, induced_subgraph, non_overlapping
+from util import WeightedDiGraph, compose, floyd_warshall, fst, induced_subgraph, non_overlapping
 
 line_re = re.compile(
     r"Valve (?P<id>\w+) [\w\s]+ rate=(?P<rate>\d+); [\w\s]+ valves? (?P<neighbors>\w+(?:, \w+)*)"

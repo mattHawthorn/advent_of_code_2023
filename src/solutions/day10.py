@@ -2,7 +2,7 @@ from itertools import accumulate, chain, cycle, islice, starmap
 from operator import mul
 from typing import IO, Iterable, Iterator, List, Optional, Tuple
 
-from .util import chunked
+from util import chunked
 
 NOOP = "noop"
 ADDX = "addx"

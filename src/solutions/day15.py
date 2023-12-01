@@ -3,7 +3,7 @@ from functools import partial
 from itertools import chain, combinations, starmap
 from typing import IO, Iterable, List, Optional, Tuple
 
-from .util import GridCoordinates, manhattan_distance, reduce_while
+from util import GridCoordinates, manhattan_distance, reduce_while
 
 Interval = Tuple[int, int]
 # slope, y intercept

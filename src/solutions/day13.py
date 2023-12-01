@@ -3,8 +3,8 @@ from functools import cmp_to_key, reduce
 from itertools import chain, starmap
 from typing import IO, Iterable, Iterator, List, Optional, Tuple, Union, cast
 
-from .tailrec import tail_recursive
-from .util import Predicate, chunked, invert, is_not_null, print_, set_verbose, take_until
+from tailrec import tail_recursive
+from util import Predicate, chunked, invert, is_not_null, print_, set_verbose, take_until
 
 Packet = Union[List, int]
 

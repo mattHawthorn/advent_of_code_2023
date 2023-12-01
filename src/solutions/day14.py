@@ -2,8 +2,8 @@ from functools import partial, reduce
 from itertools import chain, islice, product, repeat
 from typing import IO, Callable, Iterable, Iterator, List, Optional, Tuple
 
-from .tailrec import tail_recursive
-from .util import (
+from tailrec import tail_recursive
+from util import (
     GridCoordinates,
     Predicate,
     SparseGrid,

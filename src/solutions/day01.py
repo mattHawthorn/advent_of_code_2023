@@ -1,7 +1,7 @@
 import heapq
 from typing import IO, Callable, Iterator, List
 
-from .util import parse_blocks
+from util import parse_blocks
 
 
 def parse_ints(s: str):

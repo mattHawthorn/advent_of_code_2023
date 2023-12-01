@@ -3,7 +3,7 @@ from itertools import accumulate, product, starmap, tee
 from operator import lt, mul
 from typing import IO, Callable, Iterable, Iterator, List, Optional, Tuple, cast
 
-from .util import T
+from util import T
 
 Terrain = List[List[int]]
 
@@ -36,12 +36,7 @@ def viewing_distance(
     acc: int = 0,
     initial: Optional[int] = None,
 ) -> int:
-    if (
-        row_ix < 0
-        or col_ix < 0
-        or row_ix >= len(terrain)
-        or col_ix >= len(terrain[row_ix])
-    ):
+    if row_ix < 0 or col_ix < 0 or row_ix >= len(terrain) or col_ix >= len(terrain[row_ix]):
         return acc - 1
     else:
         row = terrain[row_ix]
@@ -63,9 +58,7 @@ def viewing_distance(
             return acc - 1
 
 
-def viewing_distances(
-    terrain: Terrain, row_ix: int, col_ix: int
-) -> Tuple[int, int, int, int]:
+def viewing_distances(terrain: Terrain, row_ix: int, col_ix: int) -> Tuple[int, int, int, int]:
     vd = partial(viewing_distance, terrain, row_ix, col_ix)
     return vd(0, 1), vd(0, -1), vd(1, 0), vd(-1, 0)
 
@@ -90,9 +83,7 @@ def run(input_: IO[str], part_2: bool = True) -> int:
     else:
         visibility_from_left = map(visibility, terrain)
         total_visibility = {
-            (i, j): v
-            for i, row in enumerate(visibility_from_left)
-            for j, v in enumerate(row)
+            (i, j): v for i, row in enumerate(visibility_from_left) for j, v in enumerate(row)
         }
         visibility_from_right = map(visibility, map(reversed, terrain))  # type: ignore
         total_visibility = {

@@ -16,8 +16,8 @@ SIDE_EFFECT_OPS = RETURN_OPS | {
     if name.startswith("STORE_") or name.startswith("JUMP_") or name.startswith("YIELD_")
 }
 BYTECODE_SIZE = 2
-CALL_FUNCTION_OP, CALL_FUNCTION_KW_OP = "CALL_FUNCTION", "CALL_FUNCTION_KW"
-CALL_OPS = {CALL_FUNCTION_OP, CALL_FUNCTION_KW_OP}
+CALL_OP, CALL_FUNCTION_OP, CALL_FUNCTION_KW_OP = "CALL", "CALL_FUNCTION", "CALL_FUNCTION_KW"
+CALL_OPS = {CALL_OP, CALL_FUNCTION_OP, CALL_FUNCTION_KW_OP}
 BUILD_TUPLE_OP = "BUILD_TUPLE"
 BUILD_TUPLE_OPCODE = dis.opmap[BUILD_TUPLE_OP]
 UNPACK_SEQUENCE_OP = "UNPACK_SEQUENCE"
@@ -26,7 +26,7 @@ STORE_FAST_OP = "STORE_FAST"
 STORE_FAST_OPCODE = dis.opmap[STORE_FAST_OP]
 POP_TOP_OP = "POP_TOP"
 POP_TOP_OPCODE = dis.opmap[POP_TOP_OP]
-JUMP_ABS_OP = "JUMP_ABSOLUTE"
+JUMP_ABS_OP = "JUMP_BACKWARD"
 JUMP_ABS_OPCODE = dis.opmap[JUMP_ABS_OP]
 LOAD_CONST_OP = "LOAD_CONST"
 LOAD_CONST_OPCODE = dis.opmap[LOAD_CONST_OP]
@@ -58,8 +58,10 @@ def tail_recursive(f: Callable) -> FunctionType:
         code.co_varnames,
         code.co_filename,
         code.co_name,
+        code.co_qualname,
         code.co_firstlineno,
         code.co_lnotab,
+        code.co_exceptiontable,
         code.co_freevars,
         code.co_cellvars,
     )
@@ -84,11 +86,13 @@ def recursive_call_span(instructions: Sequence[dis.Instruction], func_name: str)
         state = seek_call
         for j, next_ in enumerate(islice(instructions, 1, None), 1):
             if state == seek_call:
+                print("seek call", next_.opname, next_.argval)
                 if next_.opname in CALL_OPS:
                     state = seek_return
                 elif next_.opname in SIDE_EFFECT_OPS:
                     return None
             elif state == seek_return:
+                print("seek call", next_.opname, next_.argval)
                 if next_.opname in RETURN_OPS:
                     return j
                 else:
@@ -128,7 +132,7 @@ def transform_tail_call(
     # remove function load at beginning of sequence, call and return from end, and append
     call = instructions[-2]
     nargs = call.argval
-    if call.opname == CALL_FUNCTION_OP:
+    if call.opname in (CALL_OP, CALL_FUNCTION_OP):
         new_instructions = instructions[0:-2]
         old_ix_to_new_ix = dict(zip(range(0, len(instructions) - 2), range(len(new_instructions))))
         args = range(nargs)
