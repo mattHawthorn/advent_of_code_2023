@@ -1,0 +1,21 @@
+[tool.poetry]
+name = ""
+version = "1.0"
+description = "Advent of Code 2023 Solutions"
+authors = ["Matt Hawthorn"]
+readme = "README.md"
+packages = [{include = "lib", from="src"}, {include = "solutions", from="src"}]
+include = ["py.typed"]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+returns = "*"
+"bourbaki.application" = "*"
+
+[tool.poetry.group.dev.dependencies]
+ipykernel = "*"
+ipython = "^8.18"
+mypy = "^1.7"
+mypy-extensions = "*"
+pytest = "*"
+pytest-cov = "*"
