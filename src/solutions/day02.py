@@ -45,5 +45,5 @@ def run(input: IO[str], part_2: bool = True) -> int:
         return sum(powers)
     else:
         counts = Draw(int, {"red": 12, "green": 13, "blue": 14})
-        satisfiable_games = filter(partial(is_possible, counts), games)
-        return sum(game.id for game in satisfiable_games)
+        possible_games = filter(partial(is_possible, counts), games)
+        return sum(game.id for game in possible_games)
