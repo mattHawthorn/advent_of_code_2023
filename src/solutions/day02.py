@@ -47,3 +47,12 @@ def run(input: IO[str], part_2: bool = True) -> int:
         counts = Draw(int, {"red": 12, "green": 13, "blue": 14})
         possible_games = filter(partial(is_possible, counts), games)
         return sum(game.id for game in possible_games)
+
+
+def test():
+    import io
+
+    input_ = "Game 1: 1 red, 2 blue, 3 green; 2 green, 3 blue, 3 red\nGame 2: 15 red, 0 green"
+    f = io.StringIO
+    assert run(f(input_), part_2=False) == 1
+    assert run(f(input_), part_2=True) == 3**3 + 15
