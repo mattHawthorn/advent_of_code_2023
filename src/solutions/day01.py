@@ -53,7 +53,7 @@ def parse(input: Iterable[str], digits: Mapping[str, int]) -> Iterator[int]:
     return map(partial(parse_line, to_trie(digits), digits), map(str.strip, input))
 
 
-def run(input: IO[str], part_2: bool = False) -> int:
+def run(input: IO[str], part_2: bool = True) -> int:
     digits = READABLE_DIGITS if part_2 else DIGITS
     ints = parse(input, digits)
     return sum(ints)
