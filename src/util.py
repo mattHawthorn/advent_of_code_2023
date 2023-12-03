@@ -16,6 +16,7 @@ from typing import (
     Iterable,
     Iterator,
     List,
+    Mapping,
     MutableMapping,
     NamedTuple,
     Optional,
@@ -33,6 +34,7 @@ from tailrec import tail_recursive
 VERBOSE = False
 
 K = TypeVar("K", bound=Hashable)
+H = TypeVar("H", bound=Hashable)
 T = TypeVar("T")
 U = TypeVar("U")
 V = TypeVar("V")
@@ -209,6 +211,14 @@ def reduce_while(
 
 
 # Miscellaneous
+
+
+def invert_relation(relation: Mapping[K, Iterable[H]]) -> Mapping[H, List[K]]:
+    inverted: Mapping[H, List[K]] = defaultdict(list)
+    for k, vs in relation.items():
+        for v in vs:
+            inverted[v].append(k)
+    return inverted
 
 
 def non_overlapping(sets: Iterable[AbstractSet]) -> bool:
