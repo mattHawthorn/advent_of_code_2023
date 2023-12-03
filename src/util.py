@@ -273,6 +273,25 @@ def manhattan_distance(coord1: GridCoordinates, coord2: GridCoordinates) -> int:
     return abs(coord1[0] - coord2[0]) + abs(coord1[1] - coord2[1])
 
 
+def adjacent_coords(
+    coords: GridCoordinates,
+    width: int,
+    height: int,
+    len_: int = 0,
+) -> Iterator[GridCoordinates]:
+    i, j = coords
+    min_x = j - 1 if j > 0 else j
+    max_x = j + len_ if j + len_ < width else j + len_ - 1
+    if i > 0:
+        yield from ((i - 1, k) for k in range(min_x, max_x + 1))
+    if min_x < j:
+        yield i, min_x
+    if max_x >= j + len_:
+        yield i, max_x
+    if i < height - 1:
+        yield from ((i + 1, k) for k in range(min_x, max_x + 1))
+
+
 @dataclass
 class SparseGrid(Generic[T]):
     grid: Dict[GridCoordinates, T]

@@ -4,7 +4,7 @@ from typing import IO, Iterable, Iterator, List, Mapping, NamedTuple
 
 from returns.curry import partial
 
-from util import Grid, GridCoordinates, invert_relation
+from util import Grid, GridCoordinates, adjacent_coords, invert_relation
 
 
 class PartNumber(NamedTuple):
@@ -31,29 +31,12 @@ def part_numbers(grid: Grid[str]) -> Iterator[PartNumber]:
             yield PartNumber((i, j + 1 - len(num)), len(num), int("".join(num)))
 
 
-def adjacent_coords(
-    i: int, j: int, len_: int, width: int, height: int
-) -> Iterator[GridCoordinates]:
-    min_x = j - 1 if j > 0 else j
-    max_x = j + len_ if j + len_ < width else j + len_ - 1
-    if i > 0:
-        yield from ((i - 1, k) for k in range(min_x, max_x + 1))
-    if min_x < j:
-        yield (i, min_x)
-    if max_x >= j + len_:
-        yield (i, max_x)
-    if i < height - 1:
-        yield from ((i + 1, k) for k in range(min_x, max_x + 1))
-
-
 def adjacent_symbols(grid: Grid, number: PartNumber) -> Iterator[Symbol]:
     width = len(grid[0])
     height = len(grid)
-    i, j = number.coords
-    len_ = number.length
     return (
         Symbol((m, n), symbol)
-        for m, n in adjacent_coords(i, j, len_, width, height)
+        for m, n in adjacent_coords(number.coords, width, height, number.length)
         if (symbol := grid[m][n]) != "."
     )
 
