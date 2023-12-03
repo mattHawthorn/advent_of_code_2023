@@ -1,8 +1,7 @@
-from functools import reduce
+from functools import partial, reduce
+from itertools import chain, starmap, takewhile
 from operator import mul
-from typing import IO, Iterable, Iterator, List, Mapping, NamedTuple
-
-from returns.curry import partial
+from typing import IO, Iterable, Iterator, List, Mapping, NamedTuple, Sequence
 
 from util import Grid, GridCoordinates, adjacent_coords, invert_relation
 
@@ -18,22 +17,22 @@ class Symbol(NamedTuple):
     value: str
 
 
+def part_numbers_in_row(row_ix: int, row: Sequence[str], col_ix: int = 0) -> Iterator[PartNumber]:
+    if col_ix < len(row):
+        if row[col_ix].isdigit():
+            digits = list(takewhile(str.isdigit, (row[i] for i in range(col_ix, len(row)))))
+            yield PartNumber((row_ix, col_ix), len(digits), int("".join(digits)))
+            yield from part_numbers_in_row(row_ix, row, col_ix + len(digits))
+        else:
+            yield from part_numbers_in_row(row_ix, row, col_ix + 1)
+
+
 def part_numbers(grid: Grid[str]) -> Iterator[PartNumber]:
-    for i, row in enumerate(grid):
-        num = []
-        for j, s in enumerate(row):
-            if s.isdigit():
-                num.append(s)
-            elif num:
-                yield PartNumber((i, j - len(num)), len(num), int("".join(num)))
-                num = []
-        if num:
-            yield PartNumber((i, j + 1 - len(num)), len(num), int("".join(num)))
+    return chain.from_iterable(starmap(part_numbers_in_row, enumerate(grid)))
 
 
 def adjacent_symbols(grid: Grid, number: PartNumber) -> Iterator[Symbol]:
-    width = len(grid[0])
-    height = len(grid)
+    width, height = len(grid[0]), len(grid)
     return (
         Symbol((m, n), symbol)
         for m, n in adjacent_coords(number.coords, width, height, number.length)
@@ -64,12 +63,8 @@ def gear_ratio(numbers: Iterable[PartNumber]) -> int:
     return reduce(mul, (n.value for n in numbers))
 
 
-def parse(input: Iterable[str]) -> Grid[str]:
-    return list(map(list, map(str.strip, input)))
-
-
 def run(input: IO[str], part_2: bool = True) -> int:
-    grid = parse(input)
+    grid: Grid[str] = list(map(str.strip, input))
     numbers = part_numbers(grid)
     if part_2:
         gear_to_numbers = gear_number_adjacency(grid, numbers)

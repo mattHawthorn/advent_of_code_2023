@@ -229,7 +229,7 @@ def non_overlapping(sets: Iterable[AbstractSet]) -> bool:
 
 # Data Structures
 
-Grid = List[List[T]]
+Grid = Sequence[Sequence[T]]
 GridCoordinates = Tuple[int, int]
 GridCoordinates3D = Tuple[int, int, int]
 Vector = Tuple[int, int]
