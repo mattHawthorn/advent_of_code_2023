@@ -21,7 +21,7 @@ def score(card: Card) -> int:
     return 2 ** (num_won_ - 1) if num_won_ else 0
 
 
-def play(id_to_card: Mapping[int, Card], id_to_count: Mapping[int, int]):
+def play(id_to_card: Mapping[int, Card], id_to_count: Mapping[int, int]) -> Counter[int]:
     def won_copies(id: int, count: int) -> Counter[int]:
         won_ids = range(id + 1, id + 1 + num_won(id_to_card[id]))
         return Counter(dict(zip(filter(id_to_card.__contains__, won_ids), repeat(count))))
