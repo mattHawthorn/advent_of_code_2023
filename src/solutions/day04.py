@@ -34,8 +34,8 @@ def parse_card(s: str) -> Card:
     winning, drawn = rest.split("|", maxsplit=1)
     return Card(
         int(id_.split()[-1]),
-        list(map(int, winning.strip().split())),
-        list(map(int, drawn.strip().split())),
+        set(map(int, winning.strip().split())),
+        set(map(int, drawn.strip().split())),
     )
 
 
