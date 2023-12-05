@@ -191,18 +191,6 @@ humidity-to-location map:
 def test():
     import io
 
-    filled_ranges = fill_ranges(
-        [(range(10, 20), range(20, 30)), (range(3, 5), range(98, 100))], 0, 100
-    )
-    expected_ranges = [
-        (range(0, 3), range(0, 3)),
-        (range(3, 5), range(98, 100)),
-        (range(5, 10), range(5, 10)),
-        (range(10, 20), range(20, 30)),
-        (range(20, 100), range(20, 100)),
-    ]
-    assert filled_ranges == expected_ranges, (filled_ranges, expected_ranges)
-
     f = io.StringIO
     assert run(f(_TEST_INPUT), part_2=False) == 35
     assert run(f(_TEST_INPUT), part_2=True) == 46
