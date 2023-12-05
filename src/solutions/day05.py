@@ -1,16 +1,14 @@
 from bisect import bisect_right
 from functools import partial, reduce
 from itertools import chain, takewhile
-from typing import IO, Iterable, Iterator, List, Literal, Tuple, cast
+from typing import IO, Iterable, Iterator, List, Tuple
 
 from util import chunked, iterate, parse_blocks
 
 ID = int
 IDRange = range
 MapRange = Tuple[IDRange, IDRange]
-Category = Literal[
-    "seed", "soil", "fertilizer", "water", "light", "temperature", "humidity", "location"
-]
+Category = str
 
 
 class Map:
@@ -103,7 +101,7 @@ def compose_all_maps(maps: Iterable[Map], start_type: Category) -> Map:
     source_to_map = {m.source: m for m in maps}
 
     def next_map(map: Map) -> Map:
-        return source_to_map.get(map.target, Map("seed", "seed", []))
+        return source_to_map.get(map.target, Map("", "", []))
 
     ordered_maps = takewhile(bool, iterate(next_map, source_to_map[start_type]))
     return reduce(compose_maps, ordered_maps)
@@ -119,7 +117,7 @@ def parse_map(block: str) -> Map:
     header = lines[0]
     cat1, _, cat2_ = header.split("-", maxsplit=2)
     cat2 = cat2_.split(maxsplit=1)[0]
-    return Map(cast(Category, cat1), cast(Category, cat2), map(parse_range, lines[1:]))
+    return Map(cat1, cat2, map(parse_range, lines[1:]))
 
 
 def parse(input: Iterable[str]) -> Iterator[Map]:
