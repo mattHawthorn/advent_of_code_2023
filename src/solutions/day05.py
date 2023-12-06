@@ -65,19 +65,23 @@ def ranges_overlap(output1: IDRange, range2: MapRange) -> bool:
     )
 
 
-def overlapping_ranges(output: IDRange, ranges: Iterable[MapRange]) -> Iterable[MapRange]:
+def overlapping_ranges(map_range: MapRange, ranges: Iterable[MapRange]) -> Iterable[MapRange]:
     """Assumes `ranges` is sorted and total as in the output of `fill_ranges`"""
-    return filter(partial(ranges_overlap, output), ranges)
+    return filter(partial(ranges_overlap, map_range[1]), ranges)
 
 
-def compose_range(map_range: MapRange, ranges: Iterable[MapRange]) -> Iterable[MapRange]:
-    input1, output1 = map_range
-    for input2, output2 in overlapping_ranges(output1, ranges):
-        start = max(output1.start, input2.start)
-        stop = min(output1.stop, input2.stop) - 1
-        new_output = range(output2[input2.index(start)], output2[input2.index(stop)] + 1)
-        new_input = range(input1[output1.index(start)], input1[output1.index(stop)] + 1)
-        yield new_input, new_output
+def intersect_ranges(map_range1: MapRange, map_range2: MapRange) -> MapRange:
+    input1, output1 = map_range1
+    input2, output2 = map_range2
+    start = max(output1.start, input2.start)
+    stop = min(output1.stop, input2.stop) - 1
+    new_output = range(output2[input2.index(start)], output2[input2.index(stop)] + 1)
+    new_input = range(input1[output1.index(start)], input1[output1.index(stop)] + 1)
+    return new_input, new_output
+
+
+def compose_range(ranges: Iterable[MapRange], map_range: MapRange) -> Iterable[MapRange]:
+    return map(partial(intersect_ranges, map_range), overlapping_ranges(map_range, ranges))
 
 
 def compose_ranges(
@@ -87,7 +91,7 @@ def compose_ranges(
     max_ = max(input.stop for input, _ in chain(ranges1, ranges2))
     ranges1 = fill_ranges(ranges1, min_, max_) if fill_input else ranges1
     ranges2 = fill_ranges(ranges2, min_, max_)
-    return chain.from_iterable(compose_range(r, ranges2) for r in ranges1)
+    return chain.from_iterable(map(partial(compose_range, ranges2), ranges1))
 
 
 def compose_maps(map1: Map, map2: Map, fill_input: bool = True) -> Map:
@@ -138,18 +142,17 @@ def run(input: IO[str], part_2: bool = True) -> int:
     lines = iter(input)
     seeds_line = next(lines)
     maps = parse_blocks(lines, parse_map)
-    total_map = compose_all_maps(maps, "seed")
+    final_map = compose_all_maps(maps, "seed")
     if part_2:
         seed_ranges = list(parse_ranges(seeds_line))
-        total_map = compose_maps(
-            Map("seed", "seed", zip(seed_ranges, seed_ranges)), total_map, fill_input=False
+        final_map = compose_maps(
+            Map("seed", "seed", zip(seed_ranges, seed_ranges)), final_map, fill_input=False
         )
-        seeds = total_map.starts
+        seeds = final_map.starts
     else:
         seeds = parse_seeds(seeds_line)
 
-    results = map(total_map, seeds)
-    return min(results)
+    return min(map(final_map, seeds))
 
 
 _TEST_INPUT = """
