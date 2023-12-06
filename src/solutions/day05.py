@@ -141,15 +141,15 @@ def run(input: IO[str], part_2: bool = True) -> int:
     total_map = compose_all_maps(maps, "seed")
     if part_2:
         seed_ranges = list(parse_ranges(seeds_line))
-        final_map = compose_maps(
+        total_map = compose_maps(
             Map("seed", "seed", zip(seed_ranges, seed_ranges)), total_map, fill_input=False
         )
-        results = map(final_map, final_map.starts)
-        return min(results)
+        seeds = total_map.starts
     else:
         seeds = parse_seeds(seeds_line)
-        results = map(total_map, seeds)
-        return min(results)
+
+    results = map(total_map, seeds)
+    return min(results)
 
 
 _TEST_INPUT = """
