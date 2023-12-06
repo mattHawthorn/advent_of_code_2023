@@ -1,6 +1,7 @@
 #! /usr/bin/env python
 import json
 import sys
+import traceback
 import warnings
 from importlib import import_module
 from inspect import signature
@@ -122,8 +123,12 @@ class AOC2023:
         :param day: the day number of the problem to run tests for (1-25)
         """
         problem = import_problem(day)
-        problem.test()
-        print(f"Tests pass for day {day}!")
+        try:
+            problem.test()
+        except Exception as e:
+            traceback.print_tb(e.__traceback__, file=sys.stderr)
+        else:
+            print(f"Tests pass for day {day}!")
 
     def info(self, day: int):
         """Print the doc string for a particular day's solution, providing some details about
