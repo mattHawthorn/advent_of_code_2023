@@ -140,9 +140,8 @@ class AOC2023:
 
     def input(self, day: int):
         """Print the input text for a particular day's problem to stdout"""
-        with open(f"inputs/day{str(day).zfill(2)}.txt", "r") as f:
-            for line in f:
-                print(line, file=sys.stdout, end="")
+        for line in get_input(day):
+            print(line, file=sys.stdout, end="")
 
 
 if __name__ == "__main__":
