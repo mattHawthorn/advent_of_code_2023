@@ -21,7 +21,7 @@ class Map:
     def __bool__(self):
         return bool(self.ranges)
 
-    def __getitem__(self, item: ID):
+    def __call__(self, item: ID):
         ix = bisect_right(self.starts, item) - 1
         if ix < 0:
             return item
@@ -144,11 +144,11 @@ def run(input: IO[str], part_2: bool = True) -> int:
         final_map = compose_maps(
             Map("seed", "seed", zip(seed_ranges, seed_ranges)), total_map, fill_input=False
         )
-        results = map(final_map.__getitem__, final_map.starts)
+        results = map(final_map, final_map.starts)
         return min(results)
     else:
         seeds = parse_seeds(seeds_line)
-        results = map(total_map.__getitem__, seeds)
+        results = map(total_map, seeds)
         return min(results)
 
 
