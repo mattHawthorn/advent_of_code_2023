@@ -1,44 +1,22 @@
 from collections import Counter
-from enum import IntEnum
 from functools import partial
 from itertools import count
 from operator import mul
-from typing import IO, Callable, Dict, Iterable, NamedTuple, Tuple, Type
+from typing import IO, Callable, Iterable, NamedTuple, Tuple, Type
 
 JOKER = 1
 
 Card = int
+Hand = Tuple[Card, Card, Card, Card, Card]
+# signature of a hand as descending counts of unique card types; e.g. full house is (3, 2)
+# these sort in the natural order lexicographically
+HandKind = Tuple[int, ...]
 
 
-class HandKind(IntEnum):
-    High = 0
-    Pair = 1
-    TwoPairs = 2
-    ThreeOfAKind = 3
-    FullHouse = 4
-    FourOfAKind = 5
-    FiveOfAKind = 6
-
-
-SIGNATURE_TO_KIND: Dict[Tuple[int, ...], HandKind] = {
-    (5,): HandKind.FiveOfAKind,
-    (4, 1): HandKind.FourOfAKind,
-    (3, 2): HandKind.FullHouse,
-    (3, 1, 1): HandKind.ThreeOfAKind,
-    (2, 2, 1): HandKind.TwoPairs,
-    (2, 1, 1, 1): HandKind.Pair,
-    (1, 1, 1, 1, 1): HandKind.High,
-}
-
-
-class Hand(Tuple[Card, Card, Card, Card, Card]):
-    @property
-    def signature(self) -> Tuple[int, ...]:
-        return tuple(sorted(Counter(self).values(), reverse=True))
-
+class StandardHand(Hand):
     @property
     def kind(self) -> HandKind:
-        return SIGNATURE_TO_KIND[self.signature]
+        return tuple(sorted(Counter(self).values(), reverse=True))
 
     def __lt__(self, other):
         self_kind, other_kind = self.kind, other.kind
@@ -53,43 +31,26 @@ class Hand(Tuple[Card, Card, Card, Card, Card]):
         return self != other and not self < other
 
 
-class InterestingHand(Hand):
+class JokerHand(StandardHand):
     @property
-    def signature(self) -> Tuple[int, ...]:
-        simple_signature = super().signature
-        joker_count = self.count(JOKER)
-        if joker_count in (0, 5):
-            return simple_signature
-        elif joker_count == 4:
-            return (5,)
-        elif joker_count == 3:
-            return (4, 1) if min(simple_signature) == 1 else (5,)
-        elif joker_count == 2:
-            return (
-                (5,)
-                if max(simple_signature) == 3
-                else ((4, 1) if len(simple_signature) == 3 else (3, 1, 1))
-            )
-        else:
-            max_count = max(simple_signature)
-            return (
-                (5,)
-                if max_count == 4
-                else (
-                    (4, 1)
-                    if max_count == 3
-                    else (
-                        (3, 2)
-                        if len(simple_signature) == 3
-                        else ((3, 1, 1) if len(simple_signature) == 4 else (2, 1, 1, 1))
-                    )
-                )
-            )
+    def kind(self) -> Tuple[int, ...]:
+        return merge_jokers(self.count(JOKER), super().kind)
 
 
 class Bid(NamedTuple):
-    hand: Hand
+    hand: StandardHand
     bid: int
+
+
+def merge_jokers(joker_count: int, hand_kind: HandKind) -> HandKind:
+    if len(hand_kind) == 1 or joker_count == 0:
+        return hand_kind
+    else:
+        joker_ix = hand_kind.index(joker_count)
+        sub_hand = tuple(n for i, n in enumerate(hand_kind) if i != joker_ix)
+        max_count = max(sub_hand)
+        max_ix = sub_hand.index(max_count)
+        return (joker_count + max_count, *(n for i, n in enumerate(sub_hand) if i != max_ix))
 
 
 def score(bids: Iterable[Bid]) -> int:
@@ -105,19 +66,19 @@ def parse_joker_card(s: str) -> Card:
     return int(s) if s.isdigit() else JOKER if s == "J" else 10 + "TQKA".index(s)
 
 
-def parse_bid(parse_card: Callable[[str], Card], hand_type: Type[Hand], line: str):
+def parse_bid(parse_card: Callable[[str], Card], hand_type: Type[StandardHand], line: str):
     hand_str, bid_str = line.split(maxsplit=1)
     assert len(hand_str) == 5
     return Bid(hand_type(map(parse_card, hand_str)), int(bid_str))
 
 
 def run(input: IO[str], part_2: bool = True) -> int:
-    hand_type: Type[Hand]
+    hand_type: Type[StandardHand]
 
     if part_2:
-        card_type, hand_type = parse_joker_card, InterestingHand
+        card_type, hand_type = parse_joker_card, JokerHand
     else:
-        card_type, hand_type = parse_standard_card, Hand
+        card_type, hand_type = parse_standard_card, StandardHand
 
     bids = map(partial(parse_bid, card_type, hand_type), input)
     return score(bids)
