@@ -47,7 +47,6 @@ def sign(x: int) -> int:
     return 0 if x == 0 else (1 if x > 0 else -1)
 
 
-@tail_recursive
 def gcd(m, n):
     # Euclid
     larger, smaller = (m, n) if m > n else (n, m)
