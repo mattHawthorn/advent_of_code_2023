@@ -45,10 +45,14 @@ def solve_linear(X: Matrix, y: Vector) -> LinearSystem:
     return X, y
 
 
-def solve_polynomial(series: Series) -> Polynomial[Fraction]:
+def polynomial_degree(series: Series) -> int:
     nonzero = any
     diffs = takewhile(nonzero, iterate(diff, series))
-    degree = sum(1 for _ in diffs)
+    return sum(1 for _ in diffs)
+
+
+def solve_polynomial(series: Series) -> Polynomial[Fraction]:
+    degree = polynomial_degree(series)
     matrix: Matrix[Fraction] = list(
         map(list, (map(n.__pow__, range(degree)) for n in map(Fraction, range(degree))))
     )
