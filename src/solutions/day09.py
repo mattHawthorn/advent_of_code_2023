@@ -39,10 +39,10 @@ def row_reduce(X_y: LinearSystem, col_ix: int, backward: bool = False) -> Linear
     return X, y
 
 
-def solve_linear(X: Matrix, y: Vector) -> LinearSystem:
-    X, y = reduce(row_reduce, range(len(X)), (X, y))
-    X, y = reduce(partial(row_reduce, backward=True), range(len(X) - 1, -1, -1), (X, y))
-    return X, y
+def solve_linear(X: Matrix, y: Vector) -> Vector:
+    X_, y_ = reduce(row_reduce, range(len(X)), (X, y))
+    _, vars = reduce(partial(row_reduce, backward=True), range(len(X) - 1, -1, -1), (X, y))
+    return vars
 
 
 def polynomial_degree(series: Series) -> int:
@@ -56,7 +56,7 @@ def solve_polynomial(series: Series) -> Polynomial[Fraction]:
     matrix: Matrix[Fraction] = list(
         map(list, (map(n.__pow__, range(degree)) for n in map(Fraction, range(degree))))
     )
-    return solve_linear(matrix, list(map(Fraction, series[:degree])))[1]
+    return solve_linear(matrix, list(map(Fraction, series[:degree])))
 
 
 def evaluate(poly: Polynomial[N], n: int) -> N:
