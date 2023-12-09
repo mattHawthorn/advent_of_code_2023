@@ -41,7 +41,7 @@ def row_reduce(X_y: LinearSystem, col_ix: int, backward: bool = False) -> Linear
 
 def solve_linear(X: Matrix, y: Vector) -> Vector:
     X_, y_ = reduce(row_reduce, range(len(X)), (X, y))
-    _, vars = reduce(partial(row_reduce, backward=True), range(len(X) - 1, -1, -1), (X, y))
+    identity, vars = reduce(partial(row_reduce, backward=True), range(len(X) - 1, -1, -1), (X_, y_))
     return vars
 
 
