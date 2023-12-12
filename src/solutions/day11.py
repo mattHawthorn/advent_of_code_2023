@@ -80,4 +80,3 @@ def test():
 
     f = io.StringIO
     assert run(f(_TEST_INPUT), part_2=False) == 374
-    # assert run(f(_TEST_INPUT), part_2=True) == 2
