@@ -236,6 +236,11 @@ Vector3D = Tuple[int, int, int]
 Sprite = Sequence[GridCoordinates]
 
 
+def index(grid: Grid[T], coords: GridCoordinates) -> T:
+    i, j = coords
+    return grid[i][j]
+
+
 @overload
 def translate(step: Vector, coords: GridCoordinates) -> GridCoordinates:
     ...
@@ -276,7 +281,7 @@ def adjacent_coords(
     coords: GridCoordinates,
     width: int,
     height: int,
-    len_: int = 0,
+    len_: int = 1,
 ) -> Iterator[GridCoordinates]:
     i, j = coords
     min_x = j - 1 if j > 0 else j
