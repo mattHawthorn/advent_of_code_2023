@@ -3,7 +3,7 @@ from collections import defaultdict, deque
 from dataclasses import dataclass
 from functools import partial, reduce
 from heapq import heappop, heappush
-from itertools import accumulate, chain, filterfalse, islice, product, repeat
+from itertools import accumulate, chain, cycle, filterfalse, islice, product, repeat
 from operator import add, and_, is_, is_not, itemgetter, not_, sub
 from typing import (
     AbstractSet,
@@ -182,6 +182,47 @@ def window(size: int, it: Iterable[T]) -> Iterator[Deque[T]]:
             win.popleft()
             win.append(i)
             yield win
+
+
+@dataclass
+class StateCycle(Sequence[T]):
+    prefix: Sequence[T]
+    cycle: Sequence[T]
+
+    @property
+    def offset(self) -> int:
+        return len(self.prefix)
+
+    def __len__(self):
+        return len(self.cycle)
+
+    def __iter__(self):
+        return chain(self.prefix, cycle(self.cycle))
+
+    def __getitem__(self, item):
+        if isinstance(item, int):
+            offset = len(self.prefix)
+            if item < offset:
+                return self.prefix[item]
+            else:
+                return self.cycle[(item - offset) % len(self.cycle)]
+        elif isinstance(item, slice):
+            raise NotImplementedError(f"Can't slice {type(self)}")
+
+
+def find_cycle(key: Callable[[T], H], states: Iterable[T]) -> StateCycle[T]:
+    seen_states: Dict[H, int] = {}
+    state_cycle: List[T] = []
+    for i, s in enumerate(states):
+        k = key(s)
+        last_seen = seen_states.get(k)
+        if last_seen is None:
+            seen_states[k] = i
+            state_cycle.append(s)
+        else:
+            return StateCycle(state_cycle[:last_seen], state_cycle[last_seen:])
+    else:
+        raise ValueError("No cycle found")
 
 
 @tail_recursive
