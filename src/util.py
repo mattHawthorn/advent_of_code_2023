@@ -23,6 +23,7 @@ from typing import (
     Sequence,
     Set,
     Tuple,
+    Type,
     TypeVar,
     Union,
     cast,
@@ -280,6 +281,11 @@ Sprite = Sequence[GridCoordinates]
 def index(grid: Grid[T], coords: GridCoordinates) -> T:
     i, j = coords
     return grid[i][j]
+
+
+def in_bounds(width: int, height: int, coords: GridCoordinates) -> bool:
+    row, col = coords
+    return (0 <= row < height) and (0 <= col < width)
 
 
 @overload
@@ -546,43 +552,6 @@ def is_complete_graph(g: WeightedDiGraph[K]) -> bool:
     return len(g) == n_nodes and all(len(nbrs) == n_nodes - 1 for nbrs in g.values())
 
 
-def djikstra(graph: AnyGraph[K], start: K, end: K) -> Tuple[List[K], int]:
-    """Return shortest path (if any) from node `start` to node `end`, and the total weight
-    of the path"""
-    return DjikstraState(graph, start, [end]).shortest_path(end)
-
-
-def djikstra_all(
-    graph: WeightedDiGraph[K],
-    start: K,
-    ends: Collection[K] = frozenset(),
-    heuristic: Optional[Callable[[K], int]] = None,
-) -> Iterator[Tuple[List[K], int]]:
-    """Return all shortest paths from node `start` to each node in `ends` (or the whole graph
-    if this is empty)"""
-    ends_: Collection[K] = set(ends) if ends else graph
-    is_final = compose(len, len(ends_).__eq__)
-    state = DjikstraState(graph, start, ends_.__contains__, is_final, heuristic)
-    for end in ends or graph:
-        yield state.shortest_path(end)
-
-
-def djikstra_any(
-    graph: AnyGraph[K],
-    start: K,
-    ends: Union[Collection[K], Callable[[K], bool]],
-    heuristic: Optional[Callable[[K], int]] = None,
-) -> Optional[Tuple[List[K], int]]:
-    """Return all shortest paths from node `start` to each node in `ends` (or the whole graph
-    if this is empty)"""
-    state = DjikstraState(graph, start, ends, compose(len, (1).__eq__), heuristic)
-    if state.visited_ends:
-        end = next(iter(state.visited_ends))
-        return state.shortest_path(end)
-    else:
-        return None
-
-
 class DjikstraState(Generic[K]):
     def __init__(
         self,
@@ -592,7 +561,7 @@ class DjikstraState(Generic[K]):
         is_complete: Callable[[Set[K]], bool] = compose(len, (1).__eq__),
         heuristic: Optional[Callable[[K], int]] = None,
     ):
-        self.neighbors = cast(
+        self._neighbors = cast(
             NeighborFunc[K], graph if callable(graph) else partial(neighbors, graph)
         )
         self.is_end = ends if callable(ends) else ends.__contains__
@@ -606,6 +575,9 @@ class DjikstraState(Generic[K]):
         self.predecessors: Dict[K, K] = {}
         self.distances[start] = 0
         self.accumulate_shortest_paths()
+
+    def neighbors(self, node: K) -> Iterable[Tuple[K, int]]:
+        return self._neighbors(node)
 
     def update_dists(self, node_dists: Iterable[Tuple[K, int]], node: K):
         for n, dist in node_dists:
@@ -642,6 +614,47 @@ class DjikstraState(Generic[K]):
                 self.visited_ends.add(node)
                 if self.is_complete(self.visited_ends):
                     return
+
+
+def djikstra(
+    graph: AnyGraph[K], start: K, end: K, djikstra_state: Type[DjikstraState] = DjikstraState
+) -> Tuple[List[K], int]:
+    """Return shortest path (if any) from node `start` to node `end`, and the total weight
+    of the path"""
+    return djikstra_state(graph, start, [end]).shortest_path(end)
+
+
+def djikstra_all(
+    graph: WeightedDiGraph[K],
+    start: K,
+    ends: Collection[K] = frozenset(),
+    heuristic: Optional[Callable[[K], int]] = None,
+    djikstra_state: Type[DjikstraState] = DjikstraState,
+) -> Iterator[Tuple[List[K], int]]:
+    """Return all shortest paths from node `start` to each node in `ends` (or the whole graph
+    if this is empty)"""
+    ends_: Collection[K] = set(ends) if ends else graph
+    is_final = compose(len, len(ends_).__eq__)
+    state = djikstra_state(graph, start, ends_.__contains__, is_final, heuristic)
+    for end in ends or graph:
+        yield state.shortest_path(end)
+
+
+def djikstra_any(
+    graph: AnyGraph[K],
+    start: K,
+    ends: Union[Collection[K], Callable[[K], bool]],
+    heuristic: Optional[Callable[[K], int]] = None,
+    djikstra_state: Type[DjikstraState] = DjikstraState,
+) -> Optional[Tuple[List[K], int]]:
+    """Return all shortest paths from node `start` to each node in `ends` (or the whole graph
+    if this is empty)"""
+    state = djikstra_state(graph, start, ends, compose(len, (1).__eq__), heuristic)
+    if state.visited_ends:
+        end = next(iter(state.visited_ends))
+        return state.shortest_path(end)
+    else:
+        return None
 
 
 def floyd_warshall(graph: WeightedDiGraph[K]) -> WeightedDiGraph[K]:
