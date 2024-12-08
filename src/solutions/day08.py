@@ -1,114 +1,81 @@
-from functools import partial, reduce
-from itertools import count, cycle, takewhile
-from typing import IO, Iterable, Iterator, List, Literal, Mapping, Sequence, Tuple
+from functools import partial
+from itertools import chain, combinations, islice, product, starmap, takewhile
+from typing import IO, Callable, Iterable, Iterator, Mapping
 
-from util import chunked, iterate, lcm
-
-Node = str
-Network = Mapping[Node, Tuple[Node, Node]]
-Instruction = Literal[0, 1]
-Congruence = int
-
-SYMBOL_TO_INSTRUCTION: Mapping[str, Instruction] = {"L": 0, "R": 1}
-START: Node = "AAA"
-END: Node = "ZZZ"
+import util
+from util import GridCoordinates
 
 
-def reduce_instructions(instructions: List[Instruction]) -> List[Instruction]:
-    n_instructions = len(instructions)
-    candidates = (instructions[:i] for i in range(1, n_instructions // 2 + 1))
+def parse(input: Iterable[str]) -> tuple[int, int, Mapping[str, list[GridCoordinates]]]:
+    grid = list(map(str.strip, input))
+    height, width = len(grid), len(grid[0])
+    get = util.indexer(grid)
+    nonempty = util.compose(get, ".".__ne__)
+    return width, height, util.groupby(get, filter(nonempty, product(range(height), range(width))))
 
-    def is_repeating(candidate: List[Instruction]) -> bool:
-        i = len(candidate)
-        return n_instructions % i == 0 and all(
-            chunk == candidate for chunk in chunked(i, instructions)
+
+def antinodes(
+    width: int,
+    height: int,
+    skip: int,
+    n: int | None,
+    a: GridCoordinates,
+    b: GridCoordinates,
+) -> Iterator[GridCoordinates]:
+    x, y = a[0] - b[0], a[1] - b[1]
+    in_bounds = partial(util.in_bounds, width, height)
+    return chain.from_iterable(
+        islice(
+            takewhile(in_bounds, util.iterate(partial(util.translate, vec), start)),
+            skip,
+            None if n is None else skip + n,
         )
-
-    return next(filter(is_repeating, candidates), instructions)
-
-
-def next_node(instructions: Iterator[Instruction], node_map: Network, node: Node) -> Node:
-    direction = next(instructions)
-    return node_map[node][direction]
+        for start, vec in [(a, (x, y)), (b, (-x, -y))]
+    )
 
 
-def traverse(instructions: Iterator[Instruction], node_map: Network, node: Node) -> Iterator[Node]:
-    return iterate(partial(next_node, instructions, node_map), node)
+def all_antinodes(
+    gen: Callable[[GridCoordinates, GridCoordinates], Iterable[GridCoordinates]],
+    antennae: list[GridCoordinates],
+) -> Iterator[GridCoordinates]:
+    return chain.from_iterable(starmap(gen, combinations(antennae, 2)))
 
 
-def find_cycle(
-    instructions: Sequence[Instruction],
-    node_map: Network,
-    node: Node,
-) -> Congruence:
-    seen = {}
-    n_instructions = len(instructions)
-    for i, node in zip(count(0), traverse(cycle(instructions), node_map, node)):
-        j = i % n_instructions
-        if (j, node) in seen:
-            return i - j
-        else:
-            seen[(j, node)] = i
-    else:
-        return i
-
-
-def parse_node(s: str) -> Tuple[Node, Tuple[Node, Node]]:
-    node, lr = map(str.strip, s.split("=", maxsplit=1))
-    l, r = map(str.strip, lr.strip("()").split(",", maxsplit=1))
-    return node, (l, r)
-
-
-def parse_instructions(s: str) -> List[Instruction]:
-    return list(map(SYMBOL_TO_INSTRUCTION.__getitem__, s))
-
-
-def parse(input: Iterable[str]) -> Tuple[Sequence[Instruction], Network]:
-    lines = map(str.strip, input)
-    instructions = parse_instructions(next(lines))
-    node_map = dict(map(parse_node, filter(bool, map(str.strip, lines))))
-    return reduce_instructions(instructions), node_map
+def all_antinodes_all_frequencies(
+    gen: Callable[[GridCoordinates, GridCoordinates], Iterable[GridCoordinates]],
+    antennae: Mapping[str, list[GridCoordinates]],
+) -> Iterator[GridCoordinates]:
+    return chain.from_iterable(map(partial(all_antinodes, gen), antennae.values()))
 
 
 def run(input: IO[str], part_2: bool = True) -> int:
-    instructions, node_map = parse(input)
+    width, height, antennae = parse(input)
     if part_2:
-
-        def endswith(char: str, node: Node) -> bool:
-            return node[-1] == char
-
-        start_nodes = filter(partial(endswith, START[0]), node_map)
-        is_end = partial(endswith, END[0])
-        cycle_lens = map(partial(find_cycle, instructions, node_map, is_end), start_nodes)
-        return reduce(lcm, cycle_lens)
+        gen_antinodes = partial(antinodes, width, height, 0, None)
     else:
-        steps = takewhile(END.__ne__, traverse(cycle(instructions), node_map, START))
-        return sum(1 for _ in steps)
+        gen_antinodes = partial(antinodes, width, height, 1, 1)
+
+    return sum(1 for _ in util.unique(all_antinodes_all_frequencies(gen_antinodes, antennae)))
 
 
-_TEST_INPUT_1 = """
-LLR
-
-AAA = (BBB, BBB)
-BBB = (AAA, ZZZ)
-ZZZ = (ZZZ, ZZZ)""".strip()
-
-_TEST_INPUT_2 = """
-LR
-
-11A = (11B, XXX)
-11B = (XXX, 11Z)
-11Z = (11B, XXX)
-22A = (22B, XXX)
-22B = (22C, 22C)
-22C = (22Z, 22Z)
-22Z = (22B, 22B)
-XXX = (XXX, XXX)""".strip()
+_test_input = """
+............
+........0...
+.....0......
+.......0....
+....0.......
+......A.....
+............
+............
+........A...
+.........A..
+............
+............""".strip()
 
 
 def test():
     import io
 
     f = io.StringIO
-    assert run(f(_TEST_INPUT_1), part_2=False) == 6
-    assert run(f(_TEST_INPUT_2), part_2=True) == 6
+    util.assert_equal(run(f(_test_input), part_2=False), 14)
+    util.assert_equal(run(f(_test_input), part_2=True), 34)
