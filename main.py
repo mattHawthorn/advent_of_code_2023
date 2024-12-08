@@ -1,19 +1,13 @@
 #! /usr/bin/env python
+import argparse
 import json
 import sys
 import traceback
-import warnings
 from importlib import import_module
 from inspect import signature
 from pathlib import Path
 from time import perf_counter_ns
 from typing import IO, Dict, List, Mapping, Optional, Protocol, Sequence, TypeVar, Union, cast
-
-from bourbaki.application.cli import CommandLineInterface, cli_spec  # type: ignore
-from bourbaki.application.typed_io.cli_parse import cli_parser  # type: ignore
-from bourbaki.application.typed_io.cli_repr_ import cli_repr  # type: ignore
-
-warnings.filterwarnings("ignore", r".* jump offsets", category=UserWarning, module=r".*\.tailrec")
 
 INPUT_DIR = Path("inputs/")
 
@@ -40,21 +34,15 @@ class Part(int):
         return super().__new__(cls, val_)
 
 
-cli_repr.register(Options, as_const=True)("<name>=<value:json>")
-cli_repr.register(Sequence[Part], as_const=True)("[1|2  ...]")
-
-
-@cli_parser.register(Options, as_const=True, derive_nargs=True)
 def parse_param(args: List[str]):
     return {key: json.loads(val) for key, val in (a.split("=", maxsplit=1) for a in args)}
 
 
-@cli_parser.register(Sequence[Part], as_const=True, derive_nargs=True)
 def parse_parts(args: List[str]) -> List[Part]:
-    return list(map(Part, cli_parser(List[int])(args)))
+    return list(map(Part, args))
 
 
-def print_solution(solutions: List):
+def print_solution(solutions: list):
     for solution in solutions:
         print(solution)
 
@@ -75,20 +63,75 @@ def get_input(day: int) -> IO[str]:
     return open(filename) if sys.stdin.isatty() else sys.stdin
 
 
-cli = CommandLineInterface(
-    prog="main",
-    require_options=False,
-    require_subcommand=True,
-    implicit_flags=True,
-    use_verbose_flag=True,
+parser = argparse.ArgumentParser(
+    description="Run and test Matt Hawthorn's solutions to the 2024 Advent of Code problems",
+    add_help=True,
+)
+commmands = parser.add_subparsers(dest="subcommand", required=True)
+run = commmands.add_parser(
+    "run",
+    help=(
+        "Run the solution to a particular day's problem. The default input is in the inputs/ "
+        "folder, but input will be read from stdin if input is piped there."
+    ),
+)
+run.add_argument(
+    "day",
+    type=int,
+    help="the day number of the problem to solve (1-25)",
+)
+run.add_argument(
+    "parts",
+    nargs="*",
+    type=parse_parts,  # type: ignore
+    default=(Part(1), Part(2)),
+    help="parts of the problem to solve (solve both parts 1 and 2 by default)",
+)
+run.add_argument(
+    "--options",
+    nargs="+",
+    type=parse_param,  # type: ignore
+    required=False,
+    help=(
+        "keyword arguments to pass to the problem solution in case it is parameterized. "
+        "Run the `info` command for the problem in question to see its parameters."
+    ),
+)
+test = commmands.add_parser(
+    "test",
+    help="Run unit tests for functions used in the solution to a particular day's problem",
+)
+test.add_argument(
+    "day",
+    type=int,
+    help="the day number of the problem to run tests for (1-25)",
+)
+info = commmands.add_parser(
+    "info",
+    help=(
+        "Print the doc string for a particular day's solution, providing some details about "
+        "methodology"
+    ),
+)
+info.add_argument(
+    "day",
+    type=int,
+    help="the day number of the problem to print info for (1-25)",
+)
+input_ = commmands.add_parser(
+    "input",
+    help="Print the input text for a particular day's problem to stdout",
+)
+input_.add_argument(
+    "day",
+    type=int,
+    help="the day number of the problem to print the input for (1-25)",
 )
 
 
-@cli.definition
 class AOC2023:
-    """Run and test Matt Hawthorn's solutions to the 2023 Advent of Code problems"""
+    """Run and test Matt Hawthorn's solutions to the 2024 Advent of Code problems"""
 
-    @cli_spec.output_handler(print_solution)
     def run(
         self,
         day: int,
@@ -96,14 +139,6 @@ class AOC2023:
         *,
         options: Optional[Options] = None,
     ):
-        """Run the solution to a particular day's problem. The default input is in the inputs/
-        folder, but input will be read from stdin if input is piped there.
-
-        :param day: the day number of the problem to solve (1-25)
-        :param parts: parts of the problem to solve (solve both parts 1 and 2 by default)
-        :param options: keyword arguments to pass to the problem solution in case it is
-          parameterized. Run the `info` command for the problem in question to see its parameters.
-        """
         problem = import_problem(day)
         kwargs: Mapping[str, Param] = options or {}
         return [self._run(day, problem, part, kwargs) for part in sorted(parts)]
@@ -118,10 +153,6 @@ class AOC2023:
         return solution
 
     def test(self, day: int):
-        """Run unit tests for functions used in the solution to a particular day's problem
-
-        :param day: the day number of the problem to run tests for (1-25)
-        """
         problem = import_problem(day)
         try:
             problem.test()
@@ -131,11 +162,6 @@ class AOC2023:
             print(f"Tests pass for day {day}!")
 
     def info(self, day: int):
-        """Print the doc string for a particular day's solution, providing some details about
-        methodology.
-
-        :param day: the day number of the problem to run tests for (1-25)
-        """
         problem = import_problem(day)
         print(f"Day {day} problem info:")
         if problem.__doc__:
@@ -144,10 +170,21 @@ class AOC2023:
         print(signature(problem.run))
 
     def input(self, day: int):
-        """Print the input text for a particular day's problem to stdout"""
         for line in get_input(day):
             print(line, file=sys.stdout, end="")
 
 
 if __name__ == "__main__":
-    cli.run()
+    args = parser.parse_args()
+    cmd = args.subcommand
+    aoc = AOC2023()
+    if cmd == "run":
+        print_solution(aoc.run(args.day, args.parts, options=args.options))
+    elif cmd == "test":
+        aoc.test(args.day)
+    elif cmd == "info":
+        aoc.info(args.day)
+    elif cmd == "input":
+        aoc.input(args.day)
+    else:
+        raise ValueError(f"unknown subcommand: {cmd}")

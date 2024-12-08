@@ -9,8 +9,6 @@ include = ["py.typed"]
 
 [tool.poetry.dependencies]
 python = "^3.13"
-returns = "*"
-"bourbaki.application" = "*"
 
 [tool.poetry.group.dev.dependencies]
 ipykernel = "*"
