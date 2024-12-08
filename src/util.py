@@ -30,8 +30,6 @@ from typing import (
     overload,
 )
 
-from tailrec import tail_recursive
-
 VERBOSE = False
 
 K = TypeVar("K", bound=Hashable)
@@ -246,7 +244,7 @@ def find_cycle(key: Callable[[T], H], states: Iterable[T]) -> StateCycle[T] | No
         return None
 
 
-@tail_recursive
+# @tail_recursive
 def reduce_while(
     condition: Callable[[T, T], bool],
     agg: Callable[[T, T], T],
@@ -269,6 +267,13 @@ def reduce_while(
                 yield accumulator
                 accumulator = next_
             yield from reduce_while(condition, agg, it, accumulator)
+
+
+def groupby(key: Callable[[T], K], it: Iterable[T]) -> Mapping[K, List[T]]:
+    groups: Dict[K, List[T]] = defaultdict(list)
+    for i in it:
+        groups[key(i)].append(i)
+    return groups
 
 
 # Miscellaneous
@@ -752,7 +757,7 @@ def branch_and_bound(
     )
 
 
-@tail_recursive
+# @tail_recursive
 def _branch_and_bound(
     candidate_fn: Callable[[T], Iterable[T]],
     stop_fn: Callable[[T], bool],
