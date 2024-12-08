@@ -1,66 +1,80 @@
-from functools import partial, reduce
-from itertools import chain, repeat, starmap, takewhile
-from operator import add
-from typing import IO, Collection, Counter, Mapping, NamedTuple
+from functools import partial
+from itertools import chain, islice, product, starmap
+from operator import eq
+from typing import IO, Iterator
 
-from util import iterate
+from util import Grid, GridCoordinates, T, Vector, in_bounds, index, iterate, translate
 
-
-class Card(NamedTuple):
-    id: int
-    winning: Collection[int]
-    drawn: Collection[int]
+DIRECTIONS = [(0, 1), (1, 0), (0, -1), (-1, 0), (1, 1), (1, -1), (-1, 1), (-1, -1)]
+DIAGONALS = [(1, 1), (1, -1), (-1, 1), (-1, -1)]
 
 
-def num_won(card: Card) -> int:
-    return sum(1 for n in card.drawn if n in card.winning)
+def parse(input: IO[str]) -> Grid[str]:
+    return list(map(str.strip, input))
 
 
-def score(card: Card) -> int:
-    num_won_ = num_won(card)
-    return 2 ** (num_won_ - 1) if num_won_ else 0
+def path(
+    grid: Grid[T], height: int, width: int, length: int, coords: GridCoordinates, vec: Vector
+) -> Iterator[T] | None:
+    steps = length - 1
+    if not in_bounds(width, height, translate((vec[0] * steps, vec[1] * steps), coords)):
+        return None
+    get = partial(index, grid)
+    coordss = iterate(partial(translate, vec), coords)
+    return map(get, islice(coordss, length))
 
 
-def play(id_to_card: Mapping[int, Card], id_to_count: Mapping[int, int]) -> Counter[int]:
-    def won_copies(id: int, count: int) -> Counter[int]:
-        won_ids = range(id + 1, id + 1 + num_won(id_to_card[id]))
-        return Counter(dict(zip(filter(id_to_card.__contains__, won_ids), repeat(count))))
+def find(
+    string: str, grid: Grid[str], directions=DIRECTIONS
+) -> Iterator[tuple[GridCoordinates, Vector]]:
+    height, width, length = len(grid), len(grid[0]), len(string)
+    for x, y, direction in product(range(height), range(width), directions):
+        p = path(grid, height, width, length, (x, y), direction)
+        if p is not None and all(map(eq, string, p)):
+            yield (x, y), direction
 
-    return reduce(add, starmap(won_copies, id_to_count.items()))
 
-
-def parse_card(s: str) -> Card:
-    id_, rest = s.split(":", maxsplit=1)
-    winning, drawn = rest.split("|", maxsplit=1)
-    return Card(
-        int(id_.split()[-1]),
-        set(map(int, winning.strip().split())),
-        set(map(int, drawn.strip().split())),
-    )
+def x_complements(
+    length: int, coords: GridCoordinates, direction: Vector
+) -> Iterator[tuple[GridCoordinates, Vector]]:
+    steps = length - 1
+    yield translate((0, direction[1] * steps), coords), (direction[0], -direction[1])
+    yield translate((direction[0] * steps, 0), coords), (-direction[0], direction[1])
 
 
 def run(input: IO[str], part_2: bool = True) -> int:
-    cards = list(map(parse_card, input))
+    grid = parse(input)
     if part_2:
-        id_to_card = {card.id: card for card in cards}
-        countss = takewhile(bool, iterate(partial(play, id_to_card), {i: 1 for i in id_to_card}))
-        return sum(chain.from_iterable((counts.values() for counts in countss)))
+        sams = set(find("SAM", grid, DIAGONALS))
+        return (
+            sum(
+                map(
+                    sams.__contains__,
+                    chain.from_iterable(starmap(partial(x_complements, len("SAM")), sams)),
+                )
+            )
+            // 2
+        )
     else:
-        return sum(map(score, cards))
+        return sum(1 for _ in find("XMAS", grid, DIRECTIONS))
 
 
-_TEST_INPUT = """
-Card 1: 41 48 83 86 17 | 83 86  6 31 17  9 48 53
-Card 2: 13 32 20 16 61 | 61 30 68 82 17 32 24 19
-Card 3:  1 21 53 59 44 | 69 82 63 72 16 21 14  1
-Card 4: 41 92 73 84 69 | 59 84 76 51 58  5 54 83
-Card 5: 87 83 26 28 32 | 88 30 70 12 93 22 82 36
-Card 6: 31 18 13 56 72 | 74 77 10 23 35 67 36 11""".strip()
+_test_input = """
+MMMSXXMASM
+MSAMXMSMSA
+AMXSXMAAMM
+MSAMASMSMX
+XMASAMXAMM
+XXAMMXXAMA
+SMSMSASXSS
+SAXAMASAAA
+MAMMMXMMMM
+MXMXAXMASX""".strip()
 
 
 def test():
     import io
 
     f = io.StringIO
-    assert run(f(_TEST_INPUT), part_2=False) == 13
-    assert run(f(_TEST_INPUT), part_2=True) == 30
+    assert run(f(_test_input), part_2=False) == 18
+    assert run(f(_test_input), part_2=True) == 9

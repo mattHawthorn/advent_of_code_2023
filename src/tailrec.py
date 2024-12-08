@@ -1,4 +1,5 @@
 import dis
+import sys
 from collections import deque
 from inspect import Signature, signature
 from itertools import chain, count, islice
@@ -26,7 +27,7 @@ STORE_FAST_OP = "STORE_FAST"
 STORE_FAST_OPCODE = dis.opmap[STORE_FAST_OP]
 POP_TOP_OP = "POP_TOP"
 POP_TOP_OPCODE = dis.opmap[POP_TOP_OP]
-JUMP_ABS_OP = "JUMP_BACKWARD"
+JUMP_ABS_OP = "JUMP_BACKWARD" if sys.version_info >= (3, 11) else "JUMP_ABSOLUTE"
 JUMP_ABS_OPCODE = dis.opmap[JUMP_ABS_OP]
 LOAD_CONST_OP = "LOAD_CONST"
 LOAD_CONST_OPCODE = dis.opmap[LOAD_CONST_OP]
@@ -86,13 +87,13 @@ def recursive_call_span(instructions: Sequence[dis.Instruction], func_name: str)
         state = seek_call
         for j, next_ in enumerate(islice(instructions, 1, None), 1):
             if state == seek_call:
-                print("seek call", next_.opname, next_.argval)
+                # print("seek call", next_.opname, next_.argval)
                 if next_.opname in CALL_OPS:
                     state = seek_return
                 elif next_.opname in SIDE_EFFECT_OPS:
                     return None
             elif state == seek_return:
-                print("seek call", next_.opname, next_.argval)
+                # print("seek call", next_.opname, next_.argval)
                 if next_.opname in RETURN_OPS:
                     return j
                 else:
@@ -132,7 +133,12 @@ def transform_tail_call(
     # remove function load at beginning of sequence, call and return from end, and append
     call = instructions[-2]
     nargs = call.argval
-    if call.opname in (CALL_OP, CALL_FUNCTION_OP):
+    if call.opname == CALL_OP:
+        new_instructions = instructions[0:-3]
+        old_ix_to_new_ix = dict(zip(range(0, len(instructions) - 2), range(len(new_instructions))))
+        args = range(nargs)
+        kw = {}
+    elif call.opname == CALL_FUNCTION_OP:
         new_instructions = instructions[0:-2]
         old_ix_to_new_ix = dict(zip(range(0, len(instructions) - 2), range(len(new_instructions))))
         args = range(nargs)
@@ -169,30 +175,31 @@ def transform_tail_call(
     def next_offset():
         return new_instructions[-1].offset + BYTECODE_SIZE
 
-    new_instructions.append(
-        dis.Instruction(
-            opname=BUILD_TUPLE_OP,
-            opcode=BUILD_TUPLE_OPCODE,
-            arg=nargs,
-            argval=nargs,
-            argrepr="",
-            offset=next_offset(),
-            starts_line=None,
-            is_jump_target=True,
+    if sys.version_info < (3, 11):
+        new_instructions.append(
+            dis.Instruction(
+                opname=BUILD_TUPLE_OP,
+                opcode=BUILD_TUPLE_OPCODE,
+                arg=nargs,
+                argval=nargs,
+                argrepr="",
+                offset=next_offset(),
+                starts_line=None,
+                is_jump_target=True,
+            )
         )
-    )
-    new_instructions.append(
-        dis.Instruction(
-            UNPACK_SEQUENCE_OP,
-            opcode=UNPACK_SEQUENCE_OPCODE,
-            arg=nargs,
-            argval=nargs,
-            argrepr="",
-            offset=next_offset(),
-            starts_line=None,
-            is_jump_target=True,
+        new_instructions.append(
+            dis.Instruction(
+                UNPACK_SEQUENCE_OP,
+                opcode=UNPACK_SEQUENCE_OPCODE,
+                arg=nargs,
+                argval=nargs,
+                argrepr="",
+                offset=next_offset(),
+                starts_line=None,
+                is_jump_target=True,
+            )
         )
-    )
 
     for name in arg_names:
         new_instructions.append(
@@ -315,9 +322,14 @@ def transform_tail_calls(
     new_consts = code.co_consts
     prior_stop = 0
 
+    def print_(ins):
+        print("\n".join(map(str, ins)))
+
     for start, stop in recursive_spans:
         current_len = len(new_code)
         new_code.extend(instructions[prior_stop:start])
+        # print("Extending new code with old code:")
+        # print_(instructions[prior_stop:start])
         old_ix_to_new_ix.update(
             (prior_stop + i, current_len + i) for i in range(start - prior_stop)
         )
@@ -326,11 +338,15 @@ def transform_tail_calls(
         jump, new_consts, old_ix_to_new_ix_ = transform_tail_call(tail_call, sig, code, new_consts)
         current_len = len(new_code)
         new_code.extend(jump)
+        # print("Extending new code with tail call:")
+        # print_(jump)
         old_ix_to_new_ix.update((start + i, current_len + j) for i, j in old_ix_to_new_ix_.items())
         prior_stop = stop
 
     current_len = len(new_code)
     new_code.extend(instructions[prior_stop:])
+    # print("Extending new code with old code:")
+    # print_(instructions[prior_stop:])
     old_ix_to_new_ix.update(
         (prior_stop + i, current_len + i) for i in range(len(instructions) - prior_stop)
     )
@@ -345,6 +361,7 @@ def transform_tail_calls(
         starts_line=first.starts_line,
         is_jump_target=True,
     )
+    return new_code, new_consts, True
     return list(_fix_offsets_and_jumps(new_code, old_ix_to_new_ix)), new_consts, True
 
 

@@ -155,6 +155,26 @@ def first(it: Iterable[T]) -> T:
     return next(iter(it))
 
 
+def last(it: Iterable[T]) -> T:
+    it = iter(it)
+    last_ = next(it)
+    for i in it:
+        last_ = i
+    return last_
+
+
+def unique(it: Iterable[H]) -> Iterator[H]:
+    seen = set()
+    for i in it:
+        if i not in seen:
+            seen.add(i)
+            yield i
+
+
+def tail(it: Iterable[T]) -> Iterator[T]:
+    return islice(it, 1, None)
+
+
 def nonnull_head(it: Iterable[Optional[T]]) -> Iterator[T]:
     for i in it:
         if i is None:
@@ -211,7 +231,7 @@ class StateCycle(Sequence[T]):
             raise NotImplementedError(f"Can't slice {type(self)}")
 
 
-def find_cycle(key: Callable[[T], H], states: Iterable[T]) -> StateCycle[T]:
+def find_cycle(key: Callable[[T], H], states: Iterable[T]) -> StateCycle[T] | None:
     seen_states: Dict[H, int] = {}
     state_cycle: List[T] = []
     for i, s in enumerate(states):
@@ -223,7 +243,7 @@ def find_cycle(key: Callable[[T], H], states: Iterable[T]) -> StateCycle[T]:
         else:
             return StateCycle(state_cycle[:last_seen], state_cycle[last_seen:])
     else:
-        raise ValueError("No cycle found")
+        return None
 
 
 @tail_recursive
@@ -270,6 +290,28 @@ def non_overlapping(sets: Iterable[AbstractSet]) -> bool:
 
 # Data Structures
 
+
+@dataclass
+class LinkedList(Generic[T]):
+    head: T
+    tail: Optional["LinkedList[T]"] = None
+
+    def __iter__(self) -> Iterator[T]:
+        yield self.head
+        if self.tail is not None:
+            yield from self.tail
+
+    @classmethod
+    def from_iterable(cls, it: Iterable[T]) -> Optional["LinkedList[T]"]:
+        it = iter(it)
+        try:
+            head = next(it)
+        except StopIteration:
+            return None
+        else:
+            return cls(head, cls.from_iterable(it))
+
+
 Grid = Sequence[Sequence[T]]
 GridCoordinates = Tuple[int, int]
 GridCoordinates3D = Tuple[int, int, int]
@@ -283,9 +325,18 @@ def index(grid: Grid[T], coords: GridCoordinates) -> T:
     return grid[i][j]
 
 
+def indexer(grid: Grid[T]) -> Callable[[GridCoordinates], T]:
+    return partial(index, grid)
+
+
 def in_bounds(width: int, height: int, coords: GridCoordinates) -> bool:
     row, col = coords
     return (0 <= row < height) and (0 <= col < width)
+
+
+def bounds_check(grid: Grid) -> Predicate[GridCoordinates]:
+    height, width = len(grid), len(grid[0])
+    return partial(in_bounds, width, height)
 
 
 @overload
@@ -767,3 +818,13 @@ def parse_blocks(input_: Iterable[str], parse: Callable[[str], T]) -> Iterator[T
             block = []
     if block:
         yield parse("\n".join(block))
+
+
+# Testing
+
+
+def assert_equal(actual, expected):
+    if actual != expected:
+        msg = f"(actual) {actual} != {expected} (expected)"
+        print(msg)
+        raise AssertionError(msg)

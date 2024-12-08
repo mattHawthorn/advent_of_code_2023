@@ -75,6 +75,7 @@ def run(input: IO[str], part_2: bool = True, n: Optional[int] = None) -> int:
         grids = tilt_iter(grid, cycle(directions))
         states = zip(grids, cycle(directions))
         state_cycle = find_cycle(grid_key, states)
+        assert state_cycle is not None
         final_grid, _ = state_cycle[n_iter]
         return load(final_grid)
     else:

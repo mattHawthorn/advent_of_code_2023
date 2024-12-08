@@ -3,7 +3,7 @@ from itertools import chain, filterfalse, takewhile
 from operator import itemgetter
 from typing import IO, Iterable, List, Literal, Sequence, Set, Tuple, cast
 
-from util import GridCoordinates, index, iterate, translate
+from util import GridCoordinates, in_bounds, index, iterate, translate
 
 GridContents = Literal[".", "\\", "/", "|", "-"]
 Mirror = Literal["\\", "/"]
@@ -39,11 +39,6 @@ def split(direction: Direction, splitter: Splitter) -> List[Direction]:
         return [direction]
     else:
         return [rotate(direction, -1), rotate(direction, 1)]
-
-
-def in_bounds(w: int, h: int, coords: GridCoordinates) -> bool:
-    row, col = coords
-    return (0 <= row < h) and (0 <= col < w)
 
 
 @lru_cache(None)

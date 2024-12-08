@@ -1,53 +1,84 @@
-from functools import reduce
-from math import ceil, floor, sqrt
-from operator import itemgetter, mul
-from typing import IO, Iterable, List, Sequence, Tuple
+from functools import partial
+from itertools import chain, takewhile
+from typing import IO, Iterable, Iterator
 
-ChargeTime = int
-Distance = int
-Record = Tuple[ChargeTime, Distance]
+import util
+from util import Grid, GridCoordinates, Predicate, T, Vector
 
 
-def winning_strategies(record: Record) -> Sequence[ChargeTime]:
-    time, best_dist = record
-    # solve (time - charge) * charge > best_dist for charge
-    # charge^2 - charge*time + best_dist < 0
-    b, c = -time, best_dist
-    discriminant = sqrt(b**2 - 4 * c)
-    int_discriminant = int(discriminant)
-    is_int = float(int_discriminant) == discriminant and (int_discriminant % 2) == (b % 2)
-    lo = (-discriminant - b) / 2
-    hi = (discriminant - b) / 2
-    return range(int(ceil(lo)) + is_int, int(floor(hi)) + 1 - is_int)
+def travel_until(
+    grid: Grid[T], predicate: Predicate[GridCoordinates], vec: Vector, coords: GridCoordinates
+) -> Iterator[GridCoordinates]:
+    path = util.tail(util.iterate(partial(util.translate, vec), coords))
+    return takewhile(util.invert(predicate), takewhile(util.bounds_check(grid), path))
 
 
-def parse(lines: Iterable[str]) -> List[Record]:
-    lines = iter(lines)
-    times = map(int, next(lines).split(":", 1)[1].split())
-    distances = map(int, next(lines).split(":", 1)[1].split())
-    return list(zip(times, distances))
+def walk(
+    grid: Grid[T], predicate: Predicate[GridCoordinates], start: GridCoordinates, vec: Vector
+) -> Iterator[tuple[GridCoordinates, Vector]]:
+    in_bounds = util.bounds_check(grid)
+    while in_bounds(start):
+        for coords in travel_until(grid, predicate, vec, start):
+            yield coords, vec
+            start = coords
+        if not in_bounds(util.translate(vec, start)):
+            break
+        vec = (vec[1], -vec[0])  # turn right
+
+
+def cycle_inducing_obstructions(
+    grid: Grid[T],
+    is_obstructed: util.Predicate[GridCoordinates],
+    start: GridCoordinates,
+    vec: Vector,
+) -> Iterator[GridCoordinates]:
+    visited = {start}
+    prefix = [(start, vec)]
+    for obstruction, direction in walk(grid, is_obstructed, start, vec):
+        if obstruction not in visited:
+            visited.add(obstruction)
+            is_obstructed_ = util.any_(is_obstructed, obstruction.__eq__)
+            path_ = chain(prefix, walk(grid, is_obstructed_, *prefix[-1]))
+            if util.find_cycle(util.identity, path_) is not None:
+                yield obstruction
+        prefix.append((obstruction, direction))
+
+
+def parse(lines: Iterable[str]) -> tuple[Grid[str], GridCoordinates, Vector]:
+    grid = list(map(str.strip, lines))
+    start = next(
+        (i, j) for i, row in enumerate(grid) for j, cell in enumerate(row) if cell in "^>v<"
+    )
+    vec = {"^": (-1, 0), ">": (0, 1), "v": (1, 0), "<": (0, -1)}[util.index(grid, start)]
+    return grid, start, vec
 
 
 def run(input: IO[str], part_2: bool = True) -> int:
-    records = parse(input)
+    grid, start, vec = parse(input)
+    is_obstructed = util.compose(util.indexer(grid), "#".__eq__)
     if part_2:
-        time = int("".join(map(str, map(itemgetter(0), records))))
-        dist = int("".join(map(str, map(itemgetter(1), records))))
-        return len(winning_strategies((time, dist)))
+        return sum(1 for _ in cycle_inducing_obstructions(grid, is_obstructed, start, vec))
     else:
-        strategies = map(winning_strategies, records)
-        return reduce(mul, map(len, strategies))
+        path = walk(grid, is_obstructed, start, vec)
+        return len(set(chain([start], map(util.fst, path))))
 
 
-_TEST_INPUT = """
-Time:      7  15   30
-Distance:  9  40  200
-""".strip()
+_test_input = """
+....#.....
+.........#
+..........
+..#.......
+.......#..
+..........
+.#..^.....
+........#.
+#.........
+......#...""".strip()
 
 
 def test():
     import io
 
     f = io.StringIO
-    assert run(f(_TEST_INPUT), part_2=False) == 288
-    assert run(f(_TEST_INPUT), part_2=True) == 71503
+    util.assert_equal(run(f(_test_input), part_2=False), 41)
+    util.assert_equal(run(f(_test_input), part_2=True), 6)

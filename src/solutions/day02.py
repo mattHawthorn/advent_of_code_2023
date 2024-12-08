@@ -1,58 +1,75 @@
-from functools import partial, reduce
-from operator import mul
-from typing import IO, DefaultDict, Iterable, Iterator, Literal, NamedTuple, Sequence, cast
+from functools import partial
+from typing import IO, Iterable, Iterator
 
-Color = Literal["red", "green", "blue"]
-Draw = DefaultDict[Color, int]
+from util import LinkedList, assert_equal, sign
 
 
-class Game(NamedTuple):
-    id: int
-    draws: Sequence[Draw]
+def parse_line(line: str) -> list[int]:
+    return list(map(int, line.split()))
 
 
-def parse_draw(s: str) -> Draw:
-    draws = (d.split(" ", maxsplit=1) for d in s.strip().split(", "))
-    return Draw(int, {cast(Color, color): int(count) for count, color in draws})
-
-
-def parse_line(line: str) -> Game:
-    id_, draws = line.split(":", 1)
-    return Game(int(id_.split(" ")[-1]), list(map(parse_draw, draws.split(";"))))
-
-
-def parse(input: Iterable[str]) -> Iterator[Game]:
+def parse(input: Iterable[str]) -> Iterator[list[int]]:
     return map(parse_line, map(str.strip, input))
 
 
-def is_possible(counts: Draw, game: Game) -> bool:
-    return all(all(count <= counts[color] for color, count in draw.items()) for draw in game.draws)
+def is_safe(
+    levels: list[int], allow_removal: bool = False, min_diff: int = 1, max_diff: int = 3
+) -> bool:
+    def inner(
+        levels: LinkedList[int] | None, allow_removal: bool, prev1: int | None, prev2: int | None
+    ) -> bool:
+        if levels is None:
+            return True
+        curr = levels.head
+        if prev1 is None:
+            compatible = True
+        else:
+            diff1 = curr - prev1
+            compatible = min_diff <= abs(diff1) <= max_diff
+            if prev2 is not None:
+                diff2 = prev1 - prev2
+                compatible = compatible and sign(diff1) == sign(diff2)  # same direction
 
+        return (compatible and inner(levels.tail, allow_removal, curr, prev1)) or (
+            allow_removal and inner(levels.tail, False, prev1, prev2)  # remove current
+        )
 
-def max_(draw1: Draw, draw2: Draw) -> Draw:
-    return Draw(int, {color: max(draw1[color], draw2[color]) for color in set(draw1).union(draw2)})
-
-
-def power(game: Game) -> int:
-    fewest_satisfiable = reduce(max_, game.draws)
-    return reduce(mul, filter(bool, fewest_satisfiable.values()))
+    return inner(LinkedList.from_iterable(levels), allow_removal, None, None)
 
 
 def run(input: IO[str], part_2: bool = True) -> int:
-    games = parse(input)
-    if part_2:
-        powers = map(power, games)
-        return sum(powers)
-    else:
-        counts = Draw(int, {"red": 12, "green": 13, "blue": 14})
-        possible_games = filter(partial(is_possible, counts), games)
-        return sum(game.id for game in possible_games)
+    levelss = parse(input)
+    return sum(map(partial(is_safe, allow_removal=part_2), levelss))
+
+
+_test_input = """
+7 6 4 2 1
+1 2 7 8 9
+9 7 6 2 1
+1 3 2 4 5
+8 6 4 4 1
+1 3 6 7 9""".strip()
 
 
 def test():
     import io
 
-    input_ = "Game 1: 1 red, 2 blue, 3 green; 2 green, 3 blue, 3 red\nGame 2: 15 red, 0 green"
+    assert is_safe([1, 2, 3, 4])
+    assert is_safe([1, 3, 6, 7, 9])
+    assert is_safe([10, 7, 4, 1])
+    assert not is_safe([1, 5])
+    assert not is_safe([1, 2, 3, 7, 8])
+    assert not is_safe([8, 7, 6, 2, 1])
+    assert not is_safe([1, 3, 5, 3, 1])
+    assert is_safe([1, 5, 3, 4, 6], allow_removal=True)  # remove left
+    assert is_safe([1, 3, 5, 6, 10], allow_removal=True)  # remove right
+    assert is_safe([1, 3, 2, 4, 5], allow_removal=True)  # diffs correct size but sign change middle
+    assert is_safe([8, 6, 4, 4, 1], allow_removal=True)  # zero diff middle
+    assert is_safe([8, 6, 10, 4, 1], allow_removal=True)  # big diff with sign change middle
+    assert not is_safe([1, 5, 3, 7, 4], allow_removal=True)
+    assert not is_safe([1, 2, 7, 8, 9], allow_removal=True)
+    assert not is_safe([9, 7, 6, 2, 1], allow_removal=True)
+
     f = io.StringIO
-    assert run(f(input_), part_2=False) == 1
-    assert run(f(input_), part_2=True) == 3**3 + 15
+    assert_equal(run(f(_test_input), part_2=False), 2)
+    assert_equal(run(f(_test_input), part_2=True), 4)
