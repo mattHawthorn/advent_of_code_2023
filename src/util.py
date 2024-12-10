@@ -852,3 +852,5 @@ def assert_equal(actual, expected):
         msg = f"(actual) {actual} != {expected} (expected)"
         print(msg)
         raise AssertionError(msg)
+    else:
+        print(f"Test passed! {actual} == {expected}")
