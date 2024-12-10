@@ -603,11 +603,6 @@ def connected_components(graph: WeightedDiGraph[K]) -> Iterator[Set[K]]:
         yield component
 
 
-def is_complete_graph(g: WeightedDiGraph[K]) -> bool:
-    n_nodes = len(set(all_nodes(g)))
-    return len(g) == n_nodes and all(len(nbrs) == n_nodes - 1 for nbrs in g.values())
-
-
 class DjikstraState(Generic[K]):
     def __init__(
         self,
