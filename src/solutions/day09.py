@@ -46,7 +46,7 @@ def compactify(
                         break
                 else:
                     if remainder > 0:
-                        empty_blocks.appendleft(
+                        empties.append(
                             BlockRange(empty.start + block.width, remainder, True, empty.id)
                         )
                     break
