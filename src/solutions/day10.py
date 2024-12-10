@@ -6,10 +6,8 @@ from util import Grid, GridCoordinates, WeightedDiGraph
 
 
 def incrementing_edges_graph(grid: Grid[int]) -> util.WeightedDiGraph[GridCoordinates]:
-    get = util.indexer(grid)
-
     def diff(edge: tuple[GridCoordinates, GridCoordinates]) -> int:
-        return get(edge[1]) - get(edge[0])
+        return util.index(grid, edge[1]) - util.index(grid, edge[0])
 
     graph = util.grid_to_graph(grid, diff)
     return {k: {h: 1 for h, w in edges.items() if w == 1} for k, edges in graph.items()}
