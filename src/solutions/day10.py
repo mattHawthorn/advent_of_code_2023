@@ -1,4 +1,5 @@
 from functools import partial
+from operator import add, mul
 from typing import IO, Iterable
 
 import util
@@ -18,24 +19,26 @@ def n_reachable_by_incrementing_paths(
     graph: WeightedDiGraph[util.GridCoordinates],
     max_val: int,
     start: GridCoordinates,
+    all_paths: bool,
 ) -> int:
     is_max = util.compose(util.indexer(grid), max_val.__eq__)
-    return sum(1 for _ in filter(is_max, util.dfs_graph(graph, start)))
 
+    if all_paths:
 
-def n_incrementing_paths(
-    grid: Grid[int],
-    graph: WeightedDiGraph[GridCoordinates],
-    max_val: int,
-    start: GridCoordinates,
-    acc: int = 1,
-) -> int:
-    value = util.index(grid, start)
-    if value < max_val:
-        rec = partial(n_incrementing_paths, grid, graph, max_val)
-        return acc * sum(map(rec, graph.get(start, ())), 0)
+        def node_value(node: GridCoordinates) -> int:
+            return 1 if util.neighbors(graph, node) else is_max(node)
+
     else:
-        return int(value == max_val)
+        node_value = is_max
+
+    return util.dag_reduce(
+        graph,
+        node_value=node_value,
+        edge_op=mul if all_paths else add,
+        reduce_nbrs_op=sum,
+        start=start,
+        visited=None if all_paths else set(),
+    )
 
 
 def parse(lines: Iterable[str]) -> util.Grid[int]:
@@ -46,8 +49,8 @@ def run(input: IO[str], part_2: bool = True) -> int:
     grid = parse(input)
     graph = incrementing_edges_graph(grid)
     starts = filter(util.compose(util.indexer(grid), (0).__eq__), graph)
-    f = n_incrementing_paths if part_2 else n_reachable_by_incrementing_paths
-    return sum(f(grid, graph, 9, start) for start in starts)
+    f = partial(n_reachable_by_incrementing_paths, grid, graph, 9, all_paths=part_2)
+    return sum(map(f, starts))
 
 
 _test_input = """

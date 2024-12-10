@@ -603,6 +603,30 @@ def connected_components(graph: WeightedDiGraph[K]) -> Iterator[Set[K]]:
         yield component
 
 
+def dag_reduce(
+    dag: WeightedDiGraph[K],
+    node_value: Callable[[K], T],
+    edge_op: Callable[[T, U], T],
+    reduce_nbrs_op: Callable[[Iterable[T]], U],
+    start: K,
+    visited: set[K] | None = None,
+) -> T:
+    nbrs: Collection[K] = dag.get(start, ())
+    if visited is not None:
+        visited.add(start)
+    value = node_value(start)
+    if nbrs:
+        rec = partial(dag_reduce, dag, node_value, edge_op, reduce_nbrs_op, visited=visited)
+        return edge_op(
+            value,
+            reduce_nbrs_op(
+                map(rec, nbrs if visited is None else filterfalse(visited.__contains__, nbrs))
+            ),
+        )
+    else:
+        return value
+
+
 class DjikstraState(Generic[K]):
     def __init__(
         self,
