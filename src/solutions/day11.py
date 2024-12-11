@@ -1,82 +1,53 @@
-from functools import partial
-from itertools import combinations, product, starmap
-from operator import itemgetter
-from typing import IO, Iterable, Iterator, Sequence, Set
+from collections import Counter, defaultdict
+from itertools import chain, islice
+from typing import IO, Iterable, Iterator, Literal, Mapping
 
-from util import Grid, GridCoordinates, compose, index, manhattan_distance
+import util
 
-Space = str
-GALAXY = "#"
-EMPTY = "."
+NumType = Literal["zero", "even_digits", "positive_odd_digits"]
 
 
-def row(grid: Grid[Space], i: int) -> Sequence[Space]:
-    return grid[i]
+def step(num: int) -> tuple[int, ...]:
+    if num == 0:
+        return (1,)
+    s = str(num)
+    len_ = len(s)
+    if len_ % 2 == 0:
+        half = len_ // 2
+        return int(s[:half]), int(s[half:])
+    return (2024 * num,)
 
 
-def column(grid: Grid[Space], i: int) -> Iterable[Space]:
-    return map(itemgetter(i), grid)
+def evolve(stones: Iterable[int]) -> Iterator[Mapping[int, int]]:
+    counts = Counter(stones)
+
+    def inner(counts):
+        new = defaultdict(int)
+        for num, count in counts.items():
+            for n in step(num):
+                new[n] += count
+        return new
+
+    yield from util.iterate(inner, counts)
 
 
-def is_empty(row_or_col: Iterable[Space]) -> bool:
-    return all(map(EMPTY.__eq__, row_or_col))
-
-
-def dist(
-    empty_rows: Set[int],
-    empty_cols: Set[int],
-    expansion: int,
-    coords1: GridCoordinates,
-    coords2: GridCoordinates,
-) -> int:
-    initial_dist = manhattan_distance(coords1, coords2)
-    y1, x1 = coords1
-    y2, x2 = coords2
-    extra_y_dist = sum(map(empty_rows.__contains__, range(min(y1, y2), max(y1, y2)))) * (
-        expansion - 1
-    )
-    extra_x_dist = sum(map(empty_cols.__contains__, range(min(x1, x2), max(x1, x2)))) * (
-        expansion - 1
-    )
-    return initial_dist + extra_x_dist + extra_y_dist
-
-
-def galaxy_coords(space: Grid[Space]) -> Iterator[GridCoordinates]:
-    return filter(
-        compose(partial(index, space), GALAXY.__eq__),
-        product(range(len(space)), range(len(space[0]))),
-    )
-
-
-def parse(input: Iterable[str]) -> Grid[Space]:
-    return list(map(str.strip, input))
+def parse(input: Iterable[str]) -> list[int]:
+    return list(map(int, chain.from_iterable(map(str.split, map(str.strip, input)))))
 
 
 def run(input: IO[str], part_2: bool = True) -> int:
-    space = parse(input)
-    empty_rows = set(filter(compose(partial(row, space), is_empty), range(len(space))))
-    empty_cols = set(filter(compose(partial(column, space), is_empty), range(len(space[0]))))
-    distance = partial(dist, empty_rows, empty_cols, 1_000_000 if part_2 else 2)
-    galaxies = galaxy_coords(space)
-    galaxy_pairs = combinations(galaxies, 2)
-    return sum(starmap(distance, galaxy_pairs))
+    stones = parse(input)
+    steps = 75 if part_2 else 25
+    states = islice(evolve(stones), steps + 1)
+    counts = util.last(states)
+    return sum(counts.values())
 
 
-_TEST_INPUT = """
-...#......
-.......#..
-#.........
-..........
-......#...
-.#........
-.........#
-..........
-.......#..
-#...#.....""".strip()
+_test_input = "125 17"
 
 
 def test():
     import io
 
     f = io.StringIO
-    assert run(f(_TEST_INPUT), part_2=False) == 374
+    util.assert_equal(run(f(_test_input), part_2=False), 55312)
