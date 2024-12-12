@@ -91,6 +91,15 @@ def visited_coords(
     return zip(vs, hs)
 
 
+def states(
+    index: GridIndex,
+    next_state: Callable[[GridIndex, State], State | None],
+    start: State,
+):
+    next_state_ = partial(next_state, index)
+    return util.take_until(util.is_null, util.iterate(next_state_, start))
+
+
 def states_to_path(width: int, height: int, states: Iterable[State | None]) -> Iterator[State]:
     states1, states2 = tee(states, 2)
     next(states2)
@@ -106,9 +115,7 @@ def path(
     next_state: Callable[[GridIndex, State], State | None],
     start: State,
 ) -> Iterator[State]:
-    next_state_ = partial(next_state, index)
-    states = util.take_until(util.is_null, util.iterate(next_state_, start))
-    return states_to_path(index.width, index.height, states)
+    return states_to_path(index.width, index.height, states(index, next_state, start))
 
 
 def cycle_inducing_obstructions(
@@ -121,9 +128,10 @@ def cycle_inducing_obstructions(
 
     def induces_cycle(start_next: tuple[State, State]) -> bool:
         start, (obstruction, _) = start_next
-        next_state_ = partial(next_state, index.with_(obstruction))
-        states = util.take_until(util.is_null, util.iterate(next_state_, start))
-        return util.find_cycle(util.identity, states) is not None
+        return (
+            util.find_cycle(util.identity, states(index.with_(obstruction), next_state, start))
+            is not None
+        )
 
     def the_obstruction(start_next: tuple[State, State]) -> GridCoordinates:
         return start_next[1][0]
