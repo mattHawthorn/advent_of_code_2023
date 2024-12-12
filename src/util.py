@@ -161,12 +161,16 @@ def last(it: Iterable[T]) -> T:
     return last_
 
 
-def unique(it: Iterable[H]) -> Iterator[H]:
+def unique_by(key: Callable[[T], H], it: Iterable[T]) -> Iterator[T]:
     seen = set()
     for i in it:
-        if i not in seen:
-            seen.add(i)
+        k = key(i)
+        if k not in seen:
+            seen.add(k)
             yield i
+
+
+unique = partial(unique_by, identity)
 
 
 def tail(it: Iterable[T]) -> Iterator[T]:
