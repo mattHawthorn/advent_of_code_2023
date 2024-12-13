@@ -384,6 +384,13 @@ def manhattan_distance(coord1: GridCoordinates, coord2: GridCoordinates) -> int:
     return abs(coord1[0] - coord2[0]) + abs(coord1[1] - coord2[1])
 
 
+RDLU = ((0, 1), (1, 0), (0, -1), (-1, 0))
+
+
+def grid_neighbors(coordinates: GridCoordinates) -> Iterator[GridCoordinates]:
+    return map(partial(translate, coordinates), RDLU)
+
+
 def adjacent_coords(
     coords: GridCoordinates,
     width: int,
@@ -506,7 +513,7 @@ Edge = Tuple[K, K]
 WeightedEdge = Tuple[Edge[K], int]
 
 
-def neighbors(graph: WeightedDiGraph[K], node: K) -> Iterable[Tuple[K, int]]:
+def neighbors(graph: WeightedDiGraph[K], node: K) -> Collection[Tuple[K, int]]:
     nbrs = graph.get(node)
     return nbrs.items() if nbrs else []
 
