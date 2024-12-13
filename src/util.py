@@ -1,3 +1,4 @@
+import atexit
 import sys
 from collections import defaultdict, deque
 from dataclasses import dataclass
@@ -385,10 +386,11 @@ def manhattan_distance(coord1: GridCoordinates, coord2: GridCoordinates) -> int:
 
 
 RDLU = ((0, 1), (1, 0), (0, -1), (-1, 0))
+RDDLLUUR = ((1, 1), (1, -1), (-1, -1), (-1, 1))
 
 
-def grid_neighbors(coordinates: GridCoordinates) -> Iterator[GridCoordinates]:
-    return map(partial(translate, coordinates), RDLU)
+def grid_neighbors(coordinates: GridCoordinates, diag: bool = False) -> Iterator[GridCoordinates]:
+    return map(partial(translate, coordinates), RDDLLUUR if diag else RDLU)
 
 
 def adjacent_coords(
@@ -857,11 +859,17 @@ def parse_blocks(input_: Iterable[str], parse: Callable[[str], T]) -> Iterator[T
 
 # Testing
 
+_EXCEPTIONS = []
+atexit.register(lambda: sys.exit(1) if _EXCEPTIONS else None)
 
-def assert_equal(actual, expected):
+
+def assert_equal(actual, expected, fail_fast: bool = False):
     if actual != expected:
         msg = f"(actual) {actual} != {expected} (expected)"
         print(msg)
-        raise AssertionError(msg)
+        if fail_fast:
+            raise AssertionError(msg)
+        else:
+            _EXCEPTIONS.append(AssertionError(msg))
     else:
         print(f"Test passed! {actual} == {expected}")
