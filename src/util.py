@@ -47,17 +47,62 @@ def sign(x: int) -> int:
     return 0 if x == 0 else (1 if x > 0 else -1)
 
 
-def gcd(m, n):
-    # Euclid
-    larger, smaller = (m, n) if m > n else (n, m)
-    if smaller == 0:
-        return larger
-    _, rem = divmod(larger, smaller)
-    return gcd(smaller, rem)
+def euclid(a: int, b: int) -> Tuple[int, int, int]:
+    # Euclidean aglorithm: solve ax + by = gcd(a, b)
+    def inner(
+        sol1: Tuple[int, int, int],
+        sol2: Tuple[int, int, int],
+    ):
+        (x1, y1, d1), (x2, y2, d2) = sol1, sol2
+        q, r = divmod(d1, d2)
+        if r == 0:
+            return sol2
+        else:
+            return inner(sol2, (x1 - q * x2, y1 - q * y2, r))
+
+    return inner((1, 0, a), (0, 1, b))
+
+
+def gcd(a: int, b: int) -> int:
+    return euclid(a, b)[2]
 
 
 def lcm(a: int, b: int) -> int:
     return a * b // gcd(a, b)
+
+
+class DiophantineSolution(NamedTuple):
+    solution: Tuple[int, int]
+    generator: Tuple[int, int]
+
+    @property
+    def x(self):
+        return self.solution[0]
+
+    @property
+    def y(self):
+        return self.solution[1]
+
+    def __contains__(self, solution: Tuple[int, int]) -> bool:
+        xs, ys = solution
+        xg, yg = self.generator
+        x, y = self.solution
+        return ((xs - x) % xg == 0) and ((ys - y) % yg == 0)
+
+
+def solve_linear_diophantine(a: int, b: int, c: int) -> DiophantineSolution | None:
+    """solve ax + by = c, with x, y integers and x positive and minimal"""
+    x, y, g = euclid(a, b)
+    q, r = divmod(c, g)
+    if r == 0:
+        # a*b + b*-a = 0
+        gen = gx, gy = b // g, -a // g
+        # make x minimal and nonnegative
+        x_ = x * q
+        n = x_ // gx
+        return DiophantineSolution((x_ - n * gx, y * q - n * gy), gen)
+    else:
+        return None
 
 
 class Inf(int):
