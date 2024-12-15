@@ -1,116 +1,103 @@
-from functools import partial
-from itertools import accumulate, chain, cycle
-from operator import itemgetter, mul
-from typing import IO, Iterable, Iterator, List, Literal, Optional, Sequence, Tuple
+import re
+from collections import Counter
+from functools import partial, reduce
+from itertools import filterfalse, islice
+from operator import is_, mul
+from typing import IO, Iterable, Iterator, NamedTuple
 
-from util import Grid, find_cycle
+import util
+from util import GridCoordinates
 
-Direction = Literal["U", "D", "L", "R"]
-
-ROUND_ROCK = "O"
-CUBE_ROCK = "#"
-EMPTY = "."
-
-
-def _tilt_seq_forward(seq: Sequence[str], i: int, j: int) -> Sequence[str]:
-    n_round = seq[i:j].count(ROUND_ROCK)
-    not_end = j < len(seq)
-    return [EMPTY * (j - i - n_round), ROUND_ROCK * n_round, CUBE_ROCK * not_end]
+_line_re = re.compile(r"p=(-?\d+),(-?\d+)\s+v=(-?\d+),(-?\d+)")
 
 
-def tilt_seq(forward: bool, seq: Sequence[str]) -> Sequence[str]:
-    if forward:
-        cube_pos = [i for i, s in enumerate(seq) if s == CUBE_ROCK]
-        return "".join(
-            chain.from_iterable(
-                map(
-                    partial(_tilt_seq_forward, seq),
-                    chain((0,), map((1).__add__, cube_pos)),
-                    chain(cube_pos, (len(seq),)),
-                )
+class Robot(NamedTuple):
+    position: GridCoordinates
+    velocity: GridCoordinates
+
+
+def location_at(width: int, height: int, time: int, robot: Robot):
+    x, y = robot.position
+    vx, vy = robot.velocity
+    return (x + vx * time) % width, (y + vy * time) % height
+
+
+def quadrant(width: int, height: int, position: GridCoordinates) -> int | None:
+    x, y = position
+    mx = width // 2
+    my = height // 2
+    if x == mx or y == my:
+        return None
+    up = x < mx
+    left = y < my
+    return 2 * up + left
+
+
+def parse(input: Iterable[str]) -> Iterator[Robot]:
+    matches = map(_line_re.fullmatch, map(str.strip, input))
+    return (
+        Robot((int(m.group(1)), int(m.group(2))), (int(m.group(3)), int(m.group(4))))
+        for m in matches
+    )
+
+
+def run(input_: IO[str], part_2: bool = True, width: int = 101, height: int = 103) -> int:
+    robots = list(parse(input_))
+    if part_2:
+
+        def next_(robots_: list[Robot]) -> list[Robot]:
+            return [Robot(location_at(width, height, 1, r), r.velocity) for r in robots_]
+
+        states = islice(util.iterate(next_, robots), 10000)
+        for i, state in enumerate(states):
+            coords = set(r.position for r in state)
+            g = util.edges_to_graph_with_weight(
+                lambda *a: 1,
+                (
+                    (c1, c2)
+                    for c1, c2 in util.window(2, sorted(coords))
+                    if util.manhattan_distance(c1, c2) == 1
+                ),
             )
+            largest = max(map(len, util.connected_components(g)))
+            if largest > 10:
+                print_locations(width, height, coords)
+                print(i, "largest component", largest, "out of", len(robots))
+                return i
+    else:
+        steps = 100
+        final_positions = map(partial(location_at, width, height, steps), robots)
+        qcounts = Counter(
+            filterfalse(partial(is_, None), map(partial(quadrant, width, height), final_positions))
         )
-    else:
-        return tilt_seq(True, seq[::-1])[::-1]
+        return reduce(mul, qcounts.values(), 1)
 
 
-def tilt(grid: Grid[str], direction: Direction) -> Grid[str]:
-    forward = direction in ("R", "D")
-    tilt = partial(tilt_seq, forward)
-    if direction in ("L", "R"):
-        return list(map(tilt, grid))
-    else:
-        height = len(grid)
-        width = len(grid[0])
-        cols = (list(map(itemgetter(i), grid)) for i in range(width))
-        new_cols = list(map(tilt, cols))
-        return ["".join(map(itemgetter(i), new_cols)) for i in range(height)]
+def print_locations(width, height, coords):
+    print(
+        "\n".join(
+            "".join("#" if (i, j) in coords else "." for i in range(width)) for j in range(height)
+        )
+    )
 
 
-def tilt_iter(grid: Grid[str], directions: Iterable[Direction]) -> Iterator[Grid[str]]:
-    return accumulate(directions, tilt, initial=grid)
-
-
-def grid_key(grid_state: Tuple[Grid[str], Direction]) -> Tuple[str, Direction]:
-    grid, direction = grid_state
-    return "\n".join(map("".join, grid)), direction
-
-
-def load(grid: Grid[str]) -> int:
-    height = len(grid)
-    row_counts = (row.count(ROUND_ROCK) for row in grid)
-    return sum(map(mul, row_counts, range(height, 0, -1)))
-
-
-def parse(input: Iterable[str]) -> Grid[str]:
-    return list(map(str.strip, input))
-
-
-def run(input: IO[str], part_2: bool = True, n: Optional[int] = None) -> int:
-    grid = parse(input)
-
-    n_iter = n if n is not None else (4_000_000_000 if part_2 else None)
-    if n_iter is not None:
-        directions: List[Direction] = ["U", "L", "D", "R"]
-        grids = tilt_iter(grid, cycle(directions))
-        states = zip(grids, cycle(directions))
-        state_cycle = find_cycle(grid_key, states)
-        assert state_cycle is not None
-        final_grid, _ = state_cycle[n_iter]
-        return load(final_grid)
-    else:
-        tilted_grid = tilt(grid, "U")
-        return load(tilted_grid)
-
-
-_TEST_INPUT = """
-O....#....
-O.OO#....#
-.....##...
-OO.#O....O
-.O.....O#.
-O.#..O.#.#
-..O..#O..O
-.......O..
-#....###..
-#OO..#....""".strip()
+_test_input = """
+p=0,4 v=3,-3
+p=6,3 v=-1,-3
+p=10,3 v=-1,2
+p=2,0 v=2,-1
+p=0,0 v=1,3
+p=3,0 v=-2,-2
+p=7,6 v=-1,-3
+p=3,0 v=-1,-2
+p=9,3 v=2,3
+p=7,3 v=-1,2
+p=2,4 v=2,-3
+p=9,5 v=-3,-3""".strip()
 
 
 def test():
     import io
 
-    s = "#..O.##OO...##..O.."
-    assert tilt_seq(True, s) == "#...O##...OO##....O"
-    assert tilt_seq(False, s) == "#O...##OO...##O...."
-
-    grid = parse(_TEST_INPUT.splitlines())
-    n_round = sum(row.count(ROUND_ROCK) for row in grid)
-    cube_pos = [[i for i, s in enumerate(row) if s == CUBE_ROCK] for row in grid]
-    for direction in "U", "L", "D", "R":
-        tilted = tilt(grid, direction)
-        assert sum(row.count(ROUND_ROCK) for row in tilted) == n_round
-        assert [[i for i, s in enumerate(row) if s == CUBE_ROCK] for row in tilted] == cube_pos
-
     f = io.StringIO
-    assert run(f(_TEST_INPUT), part_2=False) == 136
-    assert run(f(_TEST_INPUT), part_2=True) == 64
+    util.assert_equal(run(f(_test_input), part_2=False, width=11, height=7), 12)
