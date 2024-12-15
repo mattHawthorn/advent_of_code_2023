@@ -9,6 +9,8 @@ from pathlib import Path
 from time import perf_counter_ns
 from typing import IO, Dict, List, Mapping, Optional, Protocol, Sequence, TypeVar, Union, cast
 
+import util
+
 INPUT_DIR = Path("inputs/")
 
 Solution = TypeVar("Solution", covariant=True)
@@ -97,9 +99,21 @@ run.add_argument(
         "Run the `info` command for the problem in question to see its parameters."
     ),
 )
+run.add_argument(
+    "--verbose",
+    "-v",
+    action="store_true",
+    help="print verbose output",
+)
 test = commmands.add_parser(
     "test",
     help="Run unit tests for functions used in the solution to a particular day's problem",
+)
+test.add_argument(
+    "--verbose",
+    "-v",
+    action="store_true",
+    help="print verbose output",
 )
 test.add_argument(
     "day",
@@ -138,10 +152,12 @@ class AOC2023:
         parts: Sequence[Part] = (Part(1), Part(2)),
         *,
         options: Optional[Options] = None,
+        verbose: bool = False,
     ):
+        util.set_verbose(verbose)
         problem = import_problem(day)
         kwargs: Mapping[str, Param] = options or {}
-        return [self._run(day, problem, part, kwargs) for part in sorted(parts)]
+        return [self._run(day, problem, part, kwargs) for part in sorted(set(parts))]
 
     def _run(self, day: int, problem: Problem, part: Part, kwargs: Mapping[str, Param]):
         input_ = get_input(day)
@@ -152,14 +168,16 @@ class AOC2023:
         print(f"Ran in {(toc - tic) / 1000000} ms", file=sys.stderr)
         return solution
 
-    def test(self, day: int):
+    def test(self, day: int, verbose: bool):
+        util.set_verbose(verbose)
         problem = import_problem(day)
         try:
             problem.test()
         except Exception as e:
             traceback.print_tb(e.__traceback__, file=sys.stderr)
         else:
-            print(f"Tests pass for day {day}!")
+            if not util._EXCEPTIONS:
+                print(f"Tests pass for day {day}!")
 
     def info(self, day: int):
         problem = import_problem(day)
@@ -179,9 +197,9 @@ if __name__ == "__main__":
     cmd = args.subcommand
     aoc = AOC2023()
     if cmd == "run":
-        print_solution(aoc.run(args.day, args.parts, options=args.options))
+        print_solution(aoc.run(args.day, args.parts, options=args.options, verbose=args.verbose))
     elif cmd == "test":
-        aoc.test(args.day)
+        aoc.test(args.day, verbose=args.verbose)
     elif cmd == "info":
         aoc.info(args.day)
     elif cmd == "input":
