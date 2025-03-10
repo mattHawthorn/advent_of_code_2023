@@ -1,11 +1,13 @@
 import atexit
+import numbers
 import sys
 from collections import defaultdict, deque
 from dataclasses import dataclass
+from fractions import Fraction
 from functools import partial, reduce
 from heapq import heappop, heappush
 from itertools import accumulate, chain, cycle, filterfalse, islice, product, repeat
-from operator import add, and_, is_, is_not, itemgetter, not_, sub
+from operator import add, and_, is_, is_not, itemgetter, mul, not_, sub
 from typing import (
     AbstractSet,
     Callable,
@@ -103,6 +105,42 @@ def solve_linear_diophantine(a: int, b: int, c: int) -> DiophantineSolution | No
         return DiophantineSolution((x_ - n * gx, y * q - n * gy), gen)
     else:
         return None
+
+
+N = TypeVar("N", bound=numbers.Rational)
+Row = Column = List[N]
+Matrix = List[Row[N]]
+LinearSystem = Tuple[Matrix[N], Column[N]]
+
+
+def multiply(vec: Row[N], n: N) -> Row[N]:
+    return list(map(partial(mul, n), vec))
+
+
+def subtract(vec1: Row[N], vec2: Row[N]) -> Row[N]:
+    return list(map(sub, vec1, vec2))
+
+
+def row_reduce(X_y: LinearSystem, col_ix: int, backward: bool = False) -> LinearSystem:
+    X, y = X_y
+    denom = X[col_ix][col_ix]
+    X[col_ix] = new_row = [Fraction(n, denom) for n in X[col_ix]]
+    y[col_ix] = Fraction(y[col_ix], denom)
+    for i in range(col_ix - 1, -1, -1) if backward else range(col_ix + 1, len(X)):
+        multiplier = X[i][col_ix]
+        X[i] = subtract(X[i], multiply(new_row, multiplier))
+        if any(v is NotImplemented for v in X[i]):
+            breakpoint()
+        y[i] = y[i] - y[col_ix] * multiplier
+    return X, y
+
+
+def solve_linear(X: Matrix, y: Column) -> Column:
+    X_, y_ = reduce(row_reduce, range(len(X)), (X, y))
+    identity_, vars_ = reduce(
+        partial(row_reduce, backward=True), range(len(X) - 1, -1, -1), (X_, y_)
+    )
+    return vars_
 
 
 class Inf(int):
@@ -367,6 +405,8 @@ class LinkedList(Generic[T]):
             return cls(head, cls.from_iterable(it))
 
 
+# Grids
+
 Grid = Sequence[Sequence[T]]
 GridCoordinates = Tuple[int, int]
 GridCoordinates3D = Tuple[int, int, int]
@@ -457,6 +497,16 @@ def adjacent_coords(
         yield from ((i + 1, k) for k in range(min_x, max_x + 1))
 
 
+def render_grid(grid: Grid[T], labels: Optional[Mapping[GridCoordinates, T]] = None) -> str:
+    if labels is None:
+        return "\n".join("".join(map(str, row)) for row in grid)
+    else:
+        return "\n".join(
+            "".join(str(labels.get((i, j), cell)) for j, cell in enumerate(row))
+            for i, row in enumerate(grid)
+        )
+
+
 @dataclass
 class SparseGrid(Generic[T]):
     grid: Dict[GridCoordinates, T]
@@ -500,6 +550,9 @@ def _max(old: Optional[int], new: int) -> int:
     return new if old is None else max(old, new)
 
 
+# Heaps
+
+
 class HeapItem(NamedTuple, Generic[K, T]):
     key: K
     value: T
@@ -515,6 +568,9 @@ class HeapItem(NamedTuple, Generic[K, T]):
 
     def __ge__(self, other):
         return self.value >= other.value
+
+
+# Trees and Graphs
 
 
 @dataclass
@@ -780,8 +836,7 @@ def djikstra_any(
     heuristic: Optional[Callable[[K], int]] = None,
     djikstra_state: Type[DjikstraState] = DjikstraState,
 ) -> Optional[Tuple[List[K], int]]:
-    """Return all shortest paths from node `start` to each node in `ends` (or the whole graph
-    if this is empty)"""
+    """Return the shortest path from node `start` to one node in `ends`"""
     state = djikstra_state(graph, start, ends, compose(len, (1).__eq__), heuristic)
     if state.visited_ends:
         end = next(iter(state.visited_ends))

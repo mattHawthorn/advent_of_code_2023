@@ -25,29 +25,53 @@ def solve(machine: Machine) -> GridCoordinates | None:
     rdet = ay * x - ax * y
     if det == 0:
         if rdet == 0:
-            # collinear
+            # collinear; 0 or infinite solutions
             sol = util.solve_linear_diophantine(ax, bx, x)
             if sol is None:
+                print("COLNO", machine)
                 return None
             else:
                 gx, gy = sol.generator
-                x, y = sol.solution
-                for n in x // gx, y // gy:
-                    xmin, ymin = x - n * gx, y - n * gy
-                    if ymin >= 0 and xmin >= 0:
-                        return xmin, ymin
+                m_, n_ = sol.solution
+                for z in m_ // gx, m_ // gy:
+                    m, n = x - z * gx, y - z * gy
+                    if m >= 0 and n >= 0:
+                        print(ax * m + bx * n, x)
+                        print(ay * m + by * n, y)
+                        try:
+                            assert x == ax * m + bx * n
+                            assert y == ay * m + by * n
+                        except:
+                            breakpoint()
+                        print("LIN", machine, m, n)
+                        return m, n
                 else:
+                    print("LIN", machine)
                     return None
         else:
+            print("DEG", machine)
+            return None
+    elif rdet % det == 0:
+        # unique solution
+        n = rdet // det
+        m = (x - bx * n) // ax
+        print(ax * m + bx * n, x)
+        print(ay * m + by * n, y)
+        try:
+            assert x == ax * m + bx * n
+            assert y == ay * m + by * n
+        except:
+            breakpoint()
+        if m >= 0 and n >= 0:
+            print("ONE    ", machine, m, n)
+            return m, n
+        else:
+            # negative solution
+            print(" NEG   ", machine, m, n)
             return None
     else:
-        if rdet % det == 0:
-            n = rdet // det
-            m = (x - bx * n) // ax
-            if m >= 0 and n >= 0:
-                return m, n
-            else:
-                return None
+        print("  NON  ", machine)
+        return None
 
 
 def cost_to_win(machine: Machine) -> int:

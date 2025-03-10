@@ -1,119 +1,112 @@
-from functools import lru_cache, partial
-from itertools import chain, filterfalse, takewhile
+from functools import partial
+from itertools import chain, cycle, islice, product, repeat
 from operator import itemgetter
-from typing import IO, Iterable, List, Literal, Sequence, Set, Tuple, cast
+from typing import IO, Iterable
 
-from util import GridCoordinates, in_bounds, index, iterate, translate
+import util
+from util import Grid, GridCoordinates, Vector
 
-GridContents = Literal[".", "\\", "/", "|", "-"]
-Mirror = Literal["\\", "/"]
-Splitter = Literal["|", "-"]
-Direction = Literal[0, 1, 2, 3]
-BeamState = Tuple[GridCoordinates, Direction]
-
-DIRECTIONS = U, L, D, R = [(-1, 0), (0, -1), (1, 0), (0, 1)]
-EMPTY: GridContents = "."
+State = tuple[GridCoordinates, Vector]
 
 
-class BeamGrid(List[Sequence[GridContents]]):
-    def __hash__(self):
-        return id(self)
-
-
-def rotate(direction: Direction, by: int) -> Direction:
-    return cast(Direction, (direction + by) % 4)
-
-
-def reflect(direction: Direction, mirror: Mirror) -> Direction:
-    vertical = direction % 2 == 0
-    if mirror == "\\":
-        step = 1 if vertical else -1
-    else:
-        step = -1 if vertical else 1
-    return rotate(direction, step)
-
-
-def split(direction: Direction, splitter: Splitter) -> List[Direction]:
-    vertical = direction % 2 == 0
-    if (splitter == "|" and vertical) or (splitter == "-" and not vertical):
-        return [direction]
-    else:
-        return [rotate(direction, -1), rotate(direction, 1)]
-
-
-@lru_cache(None)
-def _step(grid: BeamGrid, state: BeamState) -> List[BeamState]:
-    coords, direction = state
-    contents = index(grid, coords)
-    if contents == EMPTY:
-        new_directions = [direction]
-    elif contents == "\\" or contents == "/":
-        new_directions = [reflect(direction, contents)]
-    elif contents == "-" or contents == "|":
-        new_directions = split(direction, contents)
-    else:
-        raise ValueError(contents)
-
-    height = len(grid)
-    width = len(grid[0])
-    new_coords = (translate(coords, DIRECTIONS[d]) for d in new_directions)
-    return [(c, d) for c, d in zip(new_coords, new_directions) if in_bounds(width, height, c)]
-
-
-def step(grid: BeamGrid, prior_states: Set[BeamState], states: List[BeamState]) -> List[BeamState]:
-    new_states = list(
-        filterfalse(
-            prior_states.__contains__, chain.from_iterable(map(partial(_step, grid), states))
+def to_maze_graph(step_cost: int, turn_cost: int, grid: Grid[str]):
+    get = util.indexer(grid)
+    is_wall = "#".__eq__
+    grid_graph: util.WeightedDiGraph[GridCoordinates] = util.grid_to_graph(
+        grid,
+        weight_fn=lambda edge: (None if any(map(util.compose(get, is_wall), edge)) else 1),
+    )
+    state_graph: util.WeightedDiGraph[State] = util.weighted_edges_to_graph(
+        chain(
+            (
+                (((a, dir_ := util.translate_inv(a, b)), (b, dir_)), step_cost)
+                for (a, b), _ in util.all_edges(grid_graph)
+            ),
+            chain.from_iterable(
+                zip(
+                    (
+                        ((a, d1), (a, d2))
+                        for d1, d2 in chain(
+                            islice(util.window(2, cycle(util.RDLU)), 1, 5),
+                            islice(util.window(2, cycle(reversed(util.RDLU))), 1, 5),
+                        )
+                    ),
+                    repeat(turn_cost),
+                )
+                for a, neighbors in grid_graph.items()
+                if len(neighbors) == 1
+                # nodes that are either a dead end
+                or len(dirs := list(map(partial(util.translate_inv, a), neighbors))) > 1
+                and any(len(set(map(util.compose(f, abs), dirs))) > 1 for f in (util.fst, util.snd))
+                # or sit at a right-angle turn
+            ),
         )
     )
-    prior_states.update(new_states)
-    return new_states
-
-
-def num_energized(grid: BeamGrid, initial: BeamState) -> int:
-    all_states = chain.from_iterable(
-        takewhile(
-            bool,
-            iterate(partial(step, grid, set()), [initial]),
-        )
-    )
-    return len(set(map(itemgetter(0), all_states)))
-
-
-def parse(input: Iterable[str]) -> BeamGrid:
-    return BeamGrid(map(partial(cast, GridContents), map(str.strip, input)))
+    return grid_graph, state_graph
 
 
 def run(input: IO[str], part_2: bool = True) -> int:
-    grid = parse(input)
-    height = len(grid)
-    width = len(grid[0])
+    grid: Grid[str] = list(map(str.strip, input))
+    grid_graph, graph = to_maze_graph(1, 1000, grid)
+    get = util.indexer(grid)
+    start = next(
+        (c, d) for c, d in graph if get(c) == "S" and d == (0, 1)
+    )  # start facing east at S
+    ends = {(c, d) for c, d in graph if get(c) == "E"}  # end at E facing any direction
+    solution = util.djikstra_any(graph, start, ends)
+    assert solution is not None
+    path, score = solution
 
-    initial_states: Iterable[BeamState]
     if part_2:
-        initial_states = chain(
-            (((height - 1, i), 0) for i in range(width)),
-            (((i, width - 1), 1) for i in range(height)),
-            (((0, i), 2) for i in range(width)),
-            (((i, 0), 3) for i in range(height)),
-        )
-    else:
-        initial_states = [((0, 0), 3)]
+        forward = util.DjikstraState(graph, start, ends)
+        backwards = [util.DjikstraState(graph, end, start.__eq__) for end in ends]
 
-    return max(map(partial(num_energized, grid), initial_states))
+        def is_on_shortest_paths(node: State) -> int:
+            coords, dir_ = node
+            reverse_dir = (-1 * dir_[0], -1 * dir_[1])
+            return (
+                forward.distance(node)
+                + min(backward.distance((coords, reverse_dir)) for backward in backwards)
+                <= score
+            )
+
+        nodes = set(map(itemgetter(0), filter(is_on_shortest_paths, graph)))
+        result = len(nodes)
+    else:
+        nodes = set()
+        result = score
+
+    if util.VERBOSE:
+        print(
+            util.render_grid(
+                grid,
+                {c: "O" for c in nodes}
+                if part_2
+                else {c: ">v<^"[util.RDLU.index(d)] for c, d in path},
+            )
+        )
+
+    return result
 
 
 _TEST_INPUT = r"""
-.|...\....
-|.-.\.....
-.....|-...
-........|.
-..........
-.........\
-..../.\\..
-.-.-/..|..
-.|....-|.\
-..//.|....""".strip()
+#################
+#...#...#...#..E#
+#.#.#.#.#.#.#.#.#
+#.#.#.#...#...#.#
+#.#.#.#.###.#.#.#
+#...#.#.#.....#.#
+#.#.#.#.#.#####.#
+#.#...#.#.#.....#
+#.#.#####.#.###.#
+#.#.#.......#...#
+#.#.###.#####.###
+#.#.#...#.....#.#
+#.#.#.#####.###.#
+#.#.#.........#.#
+#.#.#.#########.#
+#S#.............#
+#################""".strip()
 
 
 def test():
@@ -121,5 +114,5 @@ def test():
 
     f = io.StringIO
 
-    assert run(f(_TEST_INPUT), part_2=False) == 46
-    assert run(f(_TEST_INPUT), part_2=True) == 51
+    util.assert_equal(run(f(_TEST_INPUT), part_2=False), 11048)
+    util.assert_equal(run(f(_TEST_INPUT), part_2=True), 64)
